@@ -83,3 +83,66 @@ def test_scan_result_ok_flag():
 def test_supported_extensions_includes_core_formats():
     for ext in (".jpg", ".jpeg", ".png", ".pdf"):
         assert ext in SUPPORTED_EXTENSIONS
+
+
+def test_scan_directory_isolates_errors(tmp_path, monkeypatch):
+    """Un fichier illisible ne fait pas échouer tout le lot."""
+    import cardscan.ocr as ocr
+    from cardscan.scanner import scan_directory
+
+    _touch(tmp_path / "good.jpg")
+    _touch(tmp_path / "bad.png")
+
+    def fake_scan(path, lang="fra+eng"):
+        if "bad" in str(path):
+            raise ValueError("illisible")
+        return Contact(full_name="Jean Dupont", email="jean@acme.com")
+
+    monkeypatch.setattr(ocr, "scan_card", fake_scan)
+
+    results = scan_directory(tmp_path)
+    assert len(results) == 2
+    ok = [r for r in results if r.ok]
+    ko = [r for r in results if not r.ok]
+    assert len(ok) == 1 and len(ko) == 1
+    assert ko[0].error == "illisible"
+
+
+def test_cli_directory_scan_saves_and_exports(tmp_path, monkeypatch):
+    """Le balayage CLI enregistre les cartes et génère JSON + vCard."""
+    import json as _json
+
+    import cardscan.ocr as ocr
+    import cardscan.database as database
+    from cardscan import export
+    from cardscan.__main__ import main
+
+    cards = tmp_path / "cartes"
+    cards.mkdir()
+    _touch(cards / "a.jpg")
+    _touch(cards / "b.png")
+
+    def fake_scan(path, lang="fra+eng"):
+        stem = path.stem if hasattr(path, "stem") else str(path)
+        return Contact(full_name=f"Contact {stem}", email=f"{stem}@x.com")
+
+    monkeypatch.setattr(ocr, "scan_card", fake_scan)
+    # Carnet d'adresses temporaire isolé.
+    monkeypatch.setattr(database, "default_db_path", lambda: tmp_path / "test.db")
+
+    rc = main([str(cards), "--export-dir", str(tmp_path)])
+    assert rc == 0
+
+    # Carnet : les deux contacts ont été enregistrés.
+    db = database.ContactDatabase(tmp_path / "test.db")
+    assert db.count() == 2
+    db.close()
+
+    # Deux répertoires d'export séparés.
+    json_file = tmp_path / export.JSON_DIR_NAME / "contacts.json"
+    vcf_dir = tmp_path / export.VCF_DIR_NAME
+    assert json_file.exists()
+    assert vcf_dir.is_dir()
+    data = _json.loads(json_file.read_text(encoding="utf-8"))
+    assert len(data) == 2
+    assert len(list(vcf_dir.glob("*.vcf"))) == 2

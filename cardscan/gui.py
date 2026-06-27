@@ -239,7 +239,7 @@ class CardScanApp:
             return
 
         total = len(files)
-        saved = 0
+        scanned: list = []
         failed = 0
         for index, result in enumerate(
             iter_scan_directory(directory, recursive=recursive), start=1
@@ -256,19 +256,33 @@ class CardScanApp:
                 # connexion SQLite par défaut tolère un seul thread, donc on
                 # délègue l'écriture au thread Tk.
                 self.root.after(0, self.db.add, result.contact)
-                saved += 1
+                scanned.append(result.contact)
             elif not result.ok:
                 failed += 1
 
         def _finish():
             self.refresh_contacts()
-            messagebox.showinfo(
-                "Balayage terminé",
-                f"{saved} contact(s) enregistré(s) sur {total} fichier(s).\n"
-                f"{failed} échec(s) d'analyse.",
+            # Export automatique des cartes balayées dans les deux dossiers
+            # dédiés (CV-JSON et CV-VCF), à côté des images d'origine.
+            json_path = vcf_dir = None
+            if scanned:
+                json_path = export.export_json(scanned, directory)
+                export.export_vcards(scanned, directory)
+                vcf_dir = Path(directory) / export.VCF_DIR_NAME
+            summary = (
+                f"{len(scanned)} contact(s) enregistré(s) sur {total} fichier(s).\n"
+                f"{failed} échec(s) d'analyse."
             )
+            if scanned:
+                summary += (
+                    f"\n\nExports générés :\n"
+                    f"• JSON  : {json_path}\n"
+                    f"• vCard : {vcf_dir}"
+                )
+            messagebox.showinfo("Balayage terminé", summary)
             self._set_status(
-                f"Balayage terminé : {saved}/{total} carte(s) enregistrée(s)."
+                f"Balayage terminé : {len(scanned)}/{total} carte(s), "
+                f"export JSON + vCard."
             )
 
         self.root.after(0, _finish)

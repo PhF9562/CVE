@@ -10,7 +10,9 @@ les exporter en **JSON** et **vCard (.vcf)**.
 - 📷 **Prendre une photo** d'une carte via la caméra, ou 📂 **importer** un
   fichier JPG, PNG ou PDF.
 - 📁 **Scanner un dossier entier** : balayage (récursif ou non) d'un répertoire
-  pour découvrir et analyser automatiquement toutes les cartes en lot ; chaque
+  pour découvrir et analyser automatiquement toutes les cartes en lot. Chaque
+  carte est **enregistrée dans le carnet** puis **exportée automatiquement** en
+  JSON et en vCard, dans les deux dossiers séparés `CV-JSON` et `CV-VCF`. Chaque
   fichier illisible est isolé sans interrompre le traitement.
 - 🔎 **OCR automatique** : prétraitement de l'image (niveaux de gris,
   débruitage, correction d'orientation, seuillage adaptatif) puis lecture du
@@ -77,10 +79,12 @@ python -m cardscan
 python -m cardscan carte.jpg          # affiche les champs détectés
 python -m cardscan carte.jpg --json   # sortie JSON
 
-# Balayage d'un dossier entier (récursif par défaut)
-python -m cardscan ./cartes/          # analyse toutes les cartes du dossier
-python -m cardscan ./cartes/ --save   # ...et les enregistre dans le carnet
-python -m cardscan ./cartes/ --no-recursive   # sans les sous-dossiers
+# Balayage d'un dossier entier (récursif par défaut) :
+# chaque carte est enregistrée dans le carnet PUIS exportée en JSON et vCard
+# dans les dossiers CV-JSON/ et CV-VCF/.
+python -m cardscan ./cartes/                       # exports créés dans ./cartes/
+python -m cardscan ./cartes/ --export-dir ~/Sorties  # exports ailleurs
+python -m cardscan ./cartes/ --no-recursive        # sans les sous-dossiers
 ```
 
 ## Tests
