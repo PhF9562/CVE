@@ -4,9 +4,9 @@ Toutes les données de l'application (base de contacts, exports JSON/vCard,
 captures photo) sont rangées sous un même **répertoire de travail**.
 
 Par défaut, ce répertoire est détecté automatiquement : si **OneDrive** est
-présent sur la machine, les données vont dans ``<OneDrive>/CartesDeVisite`` (donc
+présent sur la machine, les données vont dans ``<OneDrive>/numérisation`` (donc
 sauvegardées et synchronisées dans le cloud) ; sinon dans
-``<dossier personnel>/CartesDeVisite``. L'utilisateur peut toujours imposer un
+``<dossier personnel>/numérisation``. L'utilisateur peut toujours imposer un
 autre dossier (option ``--data-dir`` ou bouton de l'interface), choix qui est
 alors mémorisé d'une session à l'autre.
 """
@@ -24,7 +24,7 @@ NOM_DB = "contacts.db"
 NOM_CAPTURE = "capture_carte.png"
 
 # Sous-dossier créé dans OneDrive (ou ailleurs) pour ranger les données.
-NOM_SOUS_DOSSIER = "CartesDeVisite"
+NOM_SOUS_DOSSIER = "numérisation"
 
 # Fichier de configuration mémorisant le dernier répertoire de travail.
 FICHIER_CONFIG = Path.home() / ".cartes_visite.json"
@@ -101,8 +101,8 @@ def repertoire_par_defaut() -> Path:
     """Répertoire de travail par défaut.
 
     Si OneDrive est détecté, les données sont rangées dans
-    ``<OneDrive>/CartesDeVisite`` (sauvegardé et synchronisé dans le cloud).
-    Sinon, on retombe sur ``<dossier personnel>/CartesDeVisite``.
+    ``<OneDrive>/numérisation`` (sauvegardé et synchronisé dans le cloud).
+    Sinon, on retombe sur ``<dossier personnel>/numérisation``.
     """
     base = detecter_onedrive() or Path.home()
     return base / NOM_SOUS_DOSSIER

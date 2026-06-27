@@ -87,9 +87,9 @@ Par défaut, la base de contacts (`contacts.db`) et les exports (`CV-JSON/`,
 `CV-VCF/`) sont rangés dans un **répertoire de travail** détecté automatiquement :
 
 1. le dernier dossier choisi (mémorisé dans `~/.cartes_visite.json`) ;
-2. sinon, **OneDrive** s'il est présent → `<OneDrive>/CartesDeVisite`
+2. sinon, **OneDrive** s'il est présent → `<OneDrive>/numérisation`
    (données sauvegardées et synchronisées dans le cloud) ;
-3. sinon, `<dossier personnel>/CartesDeVisite`.
+3. sinon, `<dossier personnel>/numérisation`.
 
 OneDrive est repéré via les variables d'environnement (`OneDrive`,
 `OneDriveConsumer`, `OneDriveCommercial`) sous Windows, le dossier `~/OneDrive`,
