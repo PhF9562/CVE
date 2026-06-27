@@ -1,0 +1,17 @@
+# Dépendances pour l'application de numérisation de cartes de visite
+#
+# Le coeur applicatif (base de données, analyse de texte, export JSON/vCard)
+# ne dépend que de la bibliothèque standard de Python.
+#
+# Les paquets ci-dessous sont nécessaires uniquement pour la capture d'image
+# et la reconnaissance optique de caractères (OCR). L'application les détecte
+# au démarrage et guide l'utilisateur si l'un d'eux est manquant.
+
+pytesseract>=0.3.10   # interface Python vers le moteur Tesseract OCR
+opencv-python>=4.8.0  # prétraitement et redressement des images
+Pillow>=10.0.0        # lecture des images et conversion PDF -> image
+pdf2image>=1.16.0     # conversion des fichiers PDF en images
+
+# Remarque : le moteur Tesseract lui-même doit être installé séparément
+# (paquet système « tesseract-ocr »), tout comme « poppler » pour la
+# conversion des PDF.

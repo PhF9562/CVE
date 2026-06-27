@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Base de données locale et captures
+*.db
+capture_carte.png
+
+# Dossiers d'export générés
+CV-JSON/
+CV-VCF/
+
+# Divers
+.DS_Store
