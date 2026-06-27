@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cardscan"
+version = "1.0.0"
+description = "Application personnelle de numérisation de cartes de visite (OCR, carnet d'adresses, export JSON/vCard)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+
+# Le cœur de l'application n'a aucune dépendance ; les extras activent l'OCR.
+dependencies = []
+
+[project.optional-dependencies]
+ocr = [
+    "pytesseract>=0.3.10",
+    "Pillow>=9.0.0",
+    "opencv-python>=4.5.0",
+    "numpy>=1.21.0",
+    "pdf2image>=1.16.0",
+]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+cardscan = "cardscan.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["cardscan*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

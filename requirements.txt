@@ -1,0 +1,19 @@
+# Dépendances de CardScan.
+#
+# Le cœur de l'application (analyse, base SQLite, export JSON/vCard) n'utilise
+# que la bibliothèque standard. Les dépendances ci-dessous ne sont nécessaires
+# que pour l'OCR et la capture photo.
+
+# OCR
+pytesseract>=0.3.10        # nécessite aussi le moteur système Tesseract
+Pillow>=9.0.0
+
+# Traitement d'image et capture caméra
+opencv-python>=4.5.0
+numpy>=1.21.0
+
+# Lecture des cartes au format PDF
+pdf2image>=1.16.0          # nécessite aussi l'outil système poppler
+
+# Note : tkinter fait partie de la bibliothèque standard de Python.
+# Sous Debian/Ubuntu, installez-le au besoin via : sudo apt install python3-tk
