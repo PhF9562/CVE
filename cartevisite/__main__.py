@@ -62,7 +62,7 @@ def main(argv=None) -> int:
         help="Chemin de la base SQLite (défaut : contacts.db pour l'interface, "
              "<numérisation>/carnet.db en mode --batch).",
     )
-    parser.add_argument("--export-dir", default=".", help="Dossier des exports.")
+    parser.add_argument("--export-dir", default=None, help="Dossier des exports.")
     parser.add_argument("--scan", metavar="FICHIER", help="Analyser un fichier en console puis quitter.")
     parser.add_argument(
         "--batch", nargs="?", const="", metavar="DOSSIER",
@@ -93,7 +93,7 @@ def main(argv=None) -> int:
 
     from .gui import App
 
-    App(db_path=args.db or "contacts.db", export_dir=args.export_dir).mainloop()
+    App(db_path=args.db, export_dir=args.export_dir).mainloop()
     return 0
 
 

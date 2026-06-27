@@ -95,18 +95,39 @@ class ContactEditor(tk.Toplevel):
 class App(tk.Tk):
     """Fenêtre principale de l'application."""
 
-    def __init__(self, db_path: str = "contacts.db", export_dir: str = ".") -> None:
+    def __init__(self, db_path=None, export_dir=None, base_dir=None) -> None:
         super().__init__()
         self.title("Numérisation de cartes de visite")
-        self.geometry("640x460")
-        self.minsize(560, 420)
+        self.geometry("680x500")
+        self.minsize(580, 440)
 
-        self.db = ContactDatabase(db_path)
-        self.export_dir = export_dir
+        from .config import get_base_dir, set_base_dir
+        self._save_base_dir = set_base_dir
+
+        # Dossier de travail : argument explicite, sinon préférence mémorisée.
+        resolved = base_dir or get_base_dir()
+        self.base_dir = Path(resolved).expanduser() if resolved else None
+        self._fallback_db = db_path or "contacts.db"
+        self._fallback_export = export_dir or "."
+
+        self.db = ContactDatabase(self._db_path_for_base())
+        self.export_dir = str(self.base_dir) if self.base_dir else self._fallback_export
 
         self._build_ui()
+        self._refresh_folder_label()
         self.refresh_list()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        # Premier lancement : aucun dossier mémorisé → on le demande tout de suite.
+        if self.base_dir is None:
+            self.after(200, self._prompt_initial_base_dir)
+
+    def _db_path_for_base(self) -> str:
+        """Chemin de la base : ``<dossier>/carnet.db`` ou base de repli."""
+        if self.base_dir:
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+            return str(self.base_dir / "carnet.db")
+        return self._fallback_db
 
     # -- Construction de l'interface ------------------------------------
 
@@ -118,6 +139,17 @@ class App(tk.Tk):
         ttk.Button(toolbar, text="📁 Importer un fichier", command=self.import_file).pack(side="left", padx=4)
         ttk.Button(toolbar, text="📂 Traiter CV-Scan", command=self.process_folder).pack(side="left", padx=4)
         ttk.Button(toolbar, text="➕ Saisie manuelle", command=self.manual_entry).pack(side="left", padx=4)
+
+        # Barre du dossier de travail (sélection persistante).
+        folder_bar = ttk.Frame(self, padding=(10, 0, 10, 4))
+        folder_bar.pack(fill="x")
+        ttk.Button(
+            folder_bar, text="🗂️ Dossier de travail…", command=self.choose_base_dir
+        ).pack(side="left", padx=4)
+        self.folder_label = tk.StringVar()
+        ttk.Label(folder_bar, textvariable=self.folder_label, foreground="#555").pack(
+            side="left", padx=8
+        )
 
         # Liste des contacts.
         list_frame = ttk.Frame(self, padding=(10, 4))
@@ -197,21 +229,11 @@ class App(tk.Tk):
         Les contacts extraits sont enregistrés en base et exportés en
         JSON + vCard dans les sous-dossiers ``CV-JSON`` et ``CV-VCF``.
         """
-        from .batch import SCAN_DIR, find_base_dir
-
-        suggestion = find_base_dir()
-        chosen = filedialog.askdirectory(
-            title="Choisir le dossier « numérisation » (contenant CV-Scan)",
-            initialdir=str(suggestion if suggestion.exists() else Path.home()),
-        )
-        if not chosen:
+        # Au besoin, on demande d'abord le dossier de travail (et on le retient).
+        if self.base_dir is None and not self.choose_base_dir():
             return
 
-        base = Path(chosen)
-        # Tolérance : l'utilisateur a pu désigner directement CV-Scan.
-        if base.name == SCAN_DIR:
-            base = base.parent
-
+        base = self.base_dir
         self.status.set("Traitement du dossier CV-Scan en cours…")
 
         def worker() -> None:
@@ -223,6 +245,63 @@ class App(tk.Tk):
                 self.after(0, lambda: self._scan_failed(exc))
 
         threading.Thread(target=worker, daemon=True).start()
+
+    # -- Dossier de travail (sélection persistante) ----------------------
+
+    def _refresh_folder_label(self) -> None:
+        if self.base_dir:
+            self.folder_label.set(f"Dossier : {self.base_dir}")
+        else:
+            self.folder_label.set(
+                "Aucun dossier — cliquez « 🗂️ Dossier de travail… »"
+            )
+
+    def choose_base_dir(self) -> bool:
+        """Ouvre une boîte de navigation pour choisir le dossier de travail.
+
+        Le choix est mémorisé (config) et la base de données bascule sur
+        ``<dossier>/carnet.db``. Renvoie ``True`` si un dossier a été retenu.
+        """
+        from .batch import SCAN_DIR, ensure_layout
+
+        initial = self.base_dir if (self.base_dir and self.base_dir.exists()) else Path.home()
+        chosen = filedialog.askdirectory(
+            title="Choisir votre dossier de travail (il contiendra CV-Scan, CV-VCF, CV-JSON)",
+            initialdir=str(initial),
+        )
+        if not chosen:
+            return False
+
+        base = Path(chosen)
+        # Tolérance : l'utilisateur a pu désigner directement CV-Scan.
+        if base.name == SCAN_DIR:
+            base = base.parent
+
+        ensure_layout(base)
+        self._save_base_dir(base)  # mémorisé pour les prochains lancements
+
+        # Bascule la base de données sur le nouveau dossier.
+        self.db.close()
+        self.base_dir = base
+        self.db = ContactDatabase(self._db_path_for_base())
+        self.export_dir = str(base)
+
+        self._refresh_folder_label()
+        self.refresh_list()
+        self.status.set(f"Dossier de travail : {base}")
+        return True
+
+    def _prompt_initial_base_dir(self) -> None:
+        """Au premier lancement, explique puis ouvre la boîte de sélection."""
+        messagebox.showinfo(
+            "Bienvenue",
+            "Choisissez le dossier où ranger vos cartes de visite.\n\n"
+            "L'application y créera trois sous-dossiers :\n"
+            "  • CV-Scan  : déposez-y les cartes à analyser\n"
+            "  • CV-VCF   : fiches vCard générées\n"
+            "  • CV-JSON  : données au format JSON",
+        )
+        self.choose_base_dir()
 
     def _after_batch(self, result) -> None:
         self.refresh_list()

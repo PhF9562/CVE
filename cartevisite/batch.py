@@ -69,8 +69,9 @@ def find_base_dir(explicit: Optional[Union[str, Path]] = None) -> Path:
 
     1. le chemin ``explicit`` fourni ;
     2. la variable d'environnement ``CV_BASE_DIR`` ;
-    3. ``<OneDrive>/numérisation`` si un dossier OneDrive est détecté ;
-    4. ``./numérisation`` dans le répertoire courant.
+    3. le dossier mémorisé dans la configuration (choix de l'utilisateur) ;
+    4. ``<OneDrive>/numérisation`` si un dossier OneDrive est détecté ;
+    5. ``./numérisation`` dans le répertoire courant.
     """
     if explicit:
         return Path(explicit).expanduser()
@@ -78,6 +79,13 @@ def find_base_dir(explicit: Optional[Union[str, Path]] = None) -> Path:
     env = os.environ.get("CV_BASE_DIR")
     if env:
         return Path(env).expanduser()
+
+    # Choix explicite de l'utilisateur, mémorisé d'un lancement à l'autre.
+    from .config import get_base_dir as _configured_base_dir
+
+    configured = _configured_base_dir()
+    if configured:
+        return configured
 
     # Détection d'un dossier OneDrive courant (Windows/macOS/Linux).
     onedrive = os.environ.get("OneDrive") or os.environ.get("OneDriveConsumer")
