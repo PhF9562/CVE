@@ -101,16 +101,28 @@ class App(tk.Tk):
         self.geometry("680x500")
         self.minsize(580, 440)
 
-        from .config import get_base_dir, set_base_dir
+        from .config import app_dir, get_base_dir, set_base_dir
         self._save_base_dir = set_base_dir
+        self._busy = False  # un seul traitement long à la fois
 
         # Dossier de travail : argument explicite, sinon préférence mémorisée.
         resolved = base_dir or get_base_dir()
         self.base_dir = Path(resolved).expanduser() if resolved else None
-        self._fallback_db = db_path or "contacts.db"
-        self._fallback_export = export_dir or "."
+        # Un dossier mémorisé mais disparu (déplacé, déconnecté) est ignoré :
+        # on redemandera plutôt que de recréer une arborescence vide.
+        if self.base_dir is not None and not self.base_dir.is_dir():
+            self.base_dir = None
 
-        self.db = ContactDatabase(self._db_path_for_base())
+        # Repli stable dans l'espace applicatif (et non le répertoire courant).
+        self._fallback_db = db_path or str(app_dir() / "contacts.db")
+        self._fallback_export = export_dir or str(app_dir())
+
+        try:
+            self.db = ContactDatabase(self._db_path_for_base())
+        except OSError:
+            # Dossier configuré inutilisable : repli sur l'espace applicatif.
+            self.base_dir = None
+            self.db = ContactDatabase(self._fallback_db)
         self.export_dir = str(self.base_dir) if self.base_dir else self._fallback_export
 
         self._build_ui()
@@ -229,17 +241,22 @@ class App(tk.Tk):
         Les contacts extraits sont enregistrés en base et exportés en
         JSON + vCard dans les sous-dossiers ``CV-JSON`` et ``CV-VCF``.
         """
+        if self._busy:
+            self.status.set("Un traitement est déjà en cours…")
+            return
         # Au besoin, on demande d'abord le dossier de travail (et on le retient).
         if self.base_dir is None and not self.choose_base_dir():
             return
 
         base = self.base_dir
+        db_path = self.db.path  # capturé avant de lancer le thread
+        self._busy = True
         self.status.set("Traitement du dossier CV-Scan en cours…")
 
         def worker() -> None:
             try:
                 from .batch import process_directory
-                result = process_directory(base_dir=base, db_path=self.db.path, log=lambda *_: None)
+                result = process_directory(base_dir=base, db_path=db_path, log=lambda *_: None)
                 self.after(0, lambda: self._after_batch(result))
             except Exception as exc:
                 self.after(0, lambda: self._scan_failed(exc))
@@ -262,6 +279,13 @@ class App(tk.Tk):
         Le choix est mémorisé (config) et la base de données bascule sur
         ``<dossier>/carnet.db``. Renvoie ``True`` si un dossier a été retenu.
         """
+        if self._busy:
+            messagebox.showinfo(
+                "Traitement en cours",
+                "Veuillez attendre la fin du traitement avant de changer de dossier.",
+            )
+            return False
+
         from .batch import SCAN_DIR, ensure_layout
 
         initial = self.base_dir if (self.base_dir and self.base_dir.exists()) else Path.home()
@@ -301,9 +325,17 @@ class App(tk.Tk):
             "  • CV-VCF   : fiches vCard générées\n"
             "  • CV-JSON  : données au format JSON",
         )
-        self.choose_base_dir()
+        if not self.choose_base_dir():
+            messagebox.showwarning(
+                "Aucun dossier choisi",
+                "Aucun dossier de travail n'a été sélectionné. Vos contacts "
+                "seront enregistrés dans un emplacement temporaire.\n\n"
+                "Cliquez « 🗂️ Dossier de travail… » à tout moment pour choisir "
+                "un emplacement définitif (par exemple dans votre OneDrive).",
+            )
 
     def _after_batch(self, result) -> None:
+        self._busy = False
         self.refresh_list()
         if not result.contacts:
             self.status.set("Aucun contact extrait du dossier CV-Scan.")
@@ -316,6 +348,10 @@ class App(tk.Tk):
 
     def _scan_file(self, path: str) -> None:
         """Lance l'OCR en arrière-plan pour ne pas figer l'interface."""
+        if self._busy:
+            self.status.set("Un traitement est déjà en cours…")
+            return
+        self._busy = True
         self.status.set(f"Analyse de {Path(path).name} en cours…")
 
         def worker() -> None:
@@ -329,10 +365,12 @@ class App(tk.Tk):
         threading.Thread(target=worker, daemon=True).start()
 
     def _after_scan(self, contact: Contact) -> None:
+        self._busy = False
         self.status.set("Analyse terminée. Vérifiez les informations.")
         ContactEditor(self, contact, self._persist_new)
 
     def _scan_failed(self, exc: Exception) -> None:
+        self._busy = False
         self.status.set("Échec de l'analyse.")
         if messagebox.askyesno(
             "OCR indisponible",

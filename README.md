@@ -67,12 +67,21 @@ brew install tesseract poppler
 
 ```bash
 python -m cartevisite
-# Options : --db contacts.db  --export-dir .
 ```
 
-1. Cliquez sur **Prendre une photo** ou **Importer un fichier**.
-2. Vérifiez et corrigez les informations détectées, puis **Enregistrez**.
-3. Quand vous le souhaitez, **Exportez en JSON** ou **en vCard**.
+1. **Au premier lancement**, l'application ouvre une boîte de dialogue pour
+   choisir votre **dossier de travail** (par exemple `OneDrive/numérisation`).
+   Elle y crée `CV-Scan/`, `CV-VCF/`, `CV-JSON/` et y range le carnet
+   (`carnet.db`). Ce choix est **mémorisé** ; le bouton **🗂️ Dossier de
+   travail…** permet d'en changer ensuite.
+2. Cliquez sur **Prendre une photo**, **Importer un fichier** ou **📂 Traiter
+   CV-Scan** (lot complet du dossier).
+3. Vérifiez et corrigez les informations détectées, puis **Enregistrez**.
+4. Quand vous le souhaitez, **Exportez en JSON** ou **en vCard**.
+
+> Le dossier mémorisé vit dans `~/.cartevisite/config.json`. S'il est
+> supprimé ou déplacé, l'application le redemande au lancement suivant
+> plutôt que de recréer une arborescence vide.
 
 ### Traitement par lots d'un dossier (workflow OneDrive)
 
@@ -128,9 +137,10 @@ python -m cartevisite --scan chemin/vers/carte.jpg
 python -m unittest discover -s tests
 ```
 
-36 tests couvrent le parseur OCR, la base SQLite, les exports et le
-traitement par lots du dossier (extraction, archivage, collisions,
-cumul des exports entre passages).
+48 tests couvrent le parseur OCR, la base SQLite, les exports, le
+traitement par lots (extraction, archivage, collisions, cumul des
+exports entre passages) et les préférences persistantes (dossier de
+travail mémorisé, configuration corrompue ou périmée ignorée).
 
 ## Licence
 

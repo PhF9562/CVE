@@ -81,10 +81,13 @@ def find_base_dir(explicit: Optional[Union[str, Path]] = None) -> Path:
         return Path(env).expanduser()
 
     # Choix explicite de l'utilisateur, mémorisé d'un lancement à l'autre.
+    # On ne l'accepte que s'il existe encore : un dossier supprimé, renommé
+    # ou hors-ligne (clé USB, partage réseau, OneDrive non synchronisé) ne
+    # doit pas être recréé vide en douce — on retombe alors sur la détection.
     from .config import get_base_dir as _configured_base_dir
 
     configured = _configured_base_dir()
-    if configured:
+    if configured and configured.is_dir():
         return configured
 
     # Détection d'un dossier OneDrive courant (Windows/macOS/Linux).

@@ -30,6 +30,18 @@ def config_path() -> Path:
     return Path.home() / APP_DIR_NAME / CONFIG_FILENAME
 
 
+def app_dir() -> Path:
+    """Dossier applicatif (où vit la configuration), créé au besoin.
+
+    Sert d'emplacement de repli stable pour la base et les exports tant
+    qu'aucun dossier de travail n'a été choisi — évite de semer des
+    fichiers dans un répertoire courant arbitraire.
+    """
+    directory = config_path().parent
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
 def load_config() -> Dict[str, Any]:
     """Charge la configuration. Renvoie ``{}`` si absente ou illisible."""
     path = config_path()
@@ -54,15 +66,27 @@ def save_config(config: Dict[str, Any]) -> Path:
 
 
 def get_base_dir() -> Optional[Path]:
-    """Renvoie le dossier de travail mémorisé, ou ``None`` s'il n'y en a pas."""
+    """Renvoie le dossier de travail mémorisé, ou ``None`` s'il n'y en a pas.
+
+    Une valeur absente, vide ou non textuelle (config corrompue ou éditée à
+    la main) est traitée comme « non défini » plutôt que de propager une
+    erreur.
+    """
     value = load_config().get("base_dir")
-    if not value:
+    if not isinstance(value, str) or not value.strip():
         return None
     return Path(value).expanduser()
 
 
 def set_base_dir(path) -> Path:
-    """Mémorise ``path`` comme dossier de travail. Renvoie le chemin du config."""
+    """Mémorise ``path`` comme dossier de travail. Renvoie le chemin du config.
+
+    Le chemin est développé (``~``) et rendu absolu afin qu'il reste valide
+    quel que soit le répertoire courant au prochain lancement.
+    """
+    resolved = Path(path).expanduser()
+    if not resolved.is_absolute():
+        resolved = resolved.absolute()
     config = load_config()
-    config["base_dir"] = str(Path(path))
+    config["base_dir"] = str(resolved)
     return save_config(config)

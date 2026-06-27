@@ -42,6 +42,25 @@ class TestConfig(_ConfigEnv):
         self.assertEqual(config.load_config(), {})
         self.assertIsNone(config.get_base_dir())
 
+    def test_non_string_base_dir_is_ignored(self):
+        # Valeur non textuelle (config éditée à la main / future version).
+        for bad in (123, ["a"], True, {"x": 1}):
+            config.save_config({"base_dir": bad})
+            self.assertIsNone(config.get_base_dir())
+
+    def test_blank_base_dir_is_ignored(self):
+        config.save_config({"base_dir": "   "})
+        self.assertIsNone(config.get_base_dir())
+
+    def test_set_base_dir_stores_absolute(self):
+        config.set_base_dir("dossier-relatif")
+        stored = config.load_config()["base_dir"]
+        self.assertTrue(Path(stored).is_absolute())
+
+    def test_app_dir_exists(self):
+        d = config.app_dir()
+        self.assertTrue(d.is_dir())
+
     def test_set_base_dir_preserves_other_keys(self):
         config.save_config({"autre": 42})
         config.set_base_dir("/x/numérisation")
@@ -56,9 +75,25 @@ class TestFindBaseDirUsesConfig(_ConfigEnv):
 
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "mon-dossier"
+            target.mkdir()
             config.set_base_dir(target)
             # Sans argument ni CV_BASE_DIR, c'est le dossier mémorisé qui gagne.
             self.assertEqual(find_base_dir(), target)
+
+    def test_stale_config_is_ignored(self):
+        # Un dossier mémorisé mais inexistant ne doit pas être renvoyé tel quel
+        # (sinon ensure_layout recréerait une arborescence vide en douce).
+        from cartevisite.batch import find_base_dir
+
+        prev = os.environ.pop("CV_BASE_DIR", None)
+        try:
+            config.set_base_dir("/chemin/qui/n/existe/pas/numérisation")
+            self.assertNotEqual(
+                find_base_dir(), Path("/chemin/qui/n/existe/pas/numérisation")
+            )
+        finally:
+            if prev is not None:
+                os.environ["CV_BASE_DIR"] = prev
 
     def test_explicit_wins_over_config(self):
         from cartevisite.batch import find_base_dir
