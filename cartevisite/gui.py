@@ -116,6 +116,7 @@ class App(tk.Tk):
 
         ttk.Button(toolbar, text="📷 Prendre une photo", command=self.take_photo).pack(side="left", padx=4)
         ttk.Button(toolbar, text="📁 Importer un fichier", command=self.import_file).pack(side="left", padx=4)
+        ttk.Button(toolbar, text="📂 Traiter CV-Scan", command=self.process_folder).pack(side="left", padx=4)
         ttk.Button(toolbar, text="➕ Saisie manuelle", command=self.manual_entry).pack(side="left", padx=4)
 
         # Liste des contacts.
@@ -189,6 +190,50 @@ class App(tk.Tk):
 
     def manual_entry(self) -> None:
         ContactEditor(self, Contact(), self._persist_new)
+
+    def process_folder(self) -> None:
+        """Traite par lots le dossier ``CV-Scan`` choisi par l'utilisateur.
+
+        Les contacts extraits sont enregistrés en base et exportés en
+        JSON + vCard dans les sous-dossiers ``CV-JSON`` et ``CV-VCF``.
+        """
+        from .batch import SCAN_DIR, find_base_dir
+
+        suggestion = find_base_dir()
+        chosen = filedialog.askdirectory(
+            title="Choisir le dossier « numérisation » (contenant CV-Scan)",
+            initialdir=str(suggestion if suggestion.exists() else Path.home()),
+        )
+        if not chosen:
+            return
+
+        base = Path(chosen)
+        # Tolérance : l'utilisateur a pu désigner directement CV-Scan.
+        if base.name == SCAN_DIR:
+            base = base.parent
+
+        self.status.set("Traitement du dossier CV-Scan en cours…")
+
+        def worker() -> None:
+            try:
+                from .batch import process_directory
+                result = process_directory(base_dir=base, db_path=self.db.path, log=lambda *_: None)
+                self.after(0, lambda: self._after_batch(result))
+            except Exception as exc:
+                self.after(0, lambda: self._scan_failed(exc))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _after_batch(self, result) -> None:
+        self.refresh_list()
+        if not result.contacts:
+            self.status.set("Aucun contact extrait du dossier CV-Scan.")
+            messagebox.showinfo("Traitement du dossier", result.summary())
+            return
+        self.status.set(
+            f"{len(result.contacts)} contact(s) extrait(s) et exporté(s)."
+        )
+        messagebox.showinfo("Traitement du dossier", result.summary())
 
     def _scan_file(self, path: str) -> None:
         """Lance l'OCR en arrière-plan pour ne pas figer l'interface."""

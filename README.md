@@ -34,8 +34,9 @@ cartevisite/
 ├── camera.py        # capture webcam (OpenCV)
 ├── database.py      # stockage SQLite (CRUD + recherche)
 ├── export.py        # export JSON et vCard 3.0
+├── batch.py         # traitement par lots du dossier CV-Scan
 └── gui.py           # interface graphique tkinter
-tests/               # tests unitaires (parser, base, export)
+tests/               # tests unitaires (parser, base, export, batch)
 ```
 
 Le **cœur métier** (`models`, `parser`, `database`, `export`) ne dépend
@@ -73,6 +74,38 @@ python -m cartevisite
 2. Vérifiez et corrigez les informations détectées, puis **Enregistrez**.
 3. Quand vous le souhaitez, **Exportez en JSON** ou **en vCard**.
 
+### Traitement par lots d'un dossier (workflow OneDrive)
+
+Organisez votre dossier de travail (par exemple sous
+`OneDrive/numérisation`) ainsi :
+
+```
+numérisation/
+├── CV-Scan/   ← déposez ici les scans à analyser (JPG, PNG, PDF, TIFF, .txt)
+├── CV-VCF/    ← fichiers vCard (.vcf) générés, un par contact
+└── CV-JSON/   ← données extraites au format JSON (contacts.json)
+```
+
+Lancez l'analyse et l'extraction de tout le dossier `CV-Scan` :
+
+```bash
+# Dossier auto-détecté (OneDrive/numérisation ou ./numérisation) :
+python -m cartevisite --batch
+
+# …ou dossier explicite :
+python -m cartevisite --batch "/chemin/vers/OneDrive/numérisation"
+
+# Options : --lang fra+eng   --no-db (ne pas enregistrer en base)
+```
+
+Le dossier peut aussi être imposé via la variable d'environnement
+`CV_BASE_DIR`. Depuis l'interface graphique, le bouton **📂 Traiter
+CV-Scan** réalise la même opération. Chaque scan illisible est signalé
+dans le rapport sans interrompre le lot.
+
+> Les fichiers `.txt` (texte déjà reconnu) sont acceptés en entrée et
+> traités sans Tesseract — pratique pour tester le pipeline.
+
 ### Mode console (sans interface)
 
 Analyse rapide d'un fichier et affichage des champs détectés :
@@ -87,7 +120,8 @@ python -m cartevisite --scan chemin/vers/carte.jpg
 python -m unittest discover -s tests
 ```
 
-24 tests couvrent le parseur OCR, la base SQLite et les exports.
+30 tests couvrent le parseur OCR, la base SQLite, les exports et le
+traitement par lots du dossier.
 
 ## Licence
 

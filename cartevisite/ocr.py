@@ -107,12 +107,21 @@ def pdf_to_text(pdf_path: Union[str, Path], lang: str = "fra+eng") -> str:
     return "\n".join(texts)
 
 
+# Extensions d'images prises en charge par l'OCR.
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
+# Extensions reconnues au total (images, PDF, texte déjà extrait).
+SUPPORTED_SUFFIXES = IMAGE_SUFFIXES | {".pdf", ".txt"}
+
+
 def extract_text(path: Union[str, Path], lang: str = "fra+eng") -> str:
-    """Extrait le texte d'un fichier image ou PDF selon son extension."""
+    """Extrait le texte d'un fichier image, PDF ou texte selon son extension."""
     suffix = Path(path).suffix.lower()
+    if suffix == ".txt":
+        # Texte déjà reconnu : aucune dépendance OCR requise.
+        return Path(path).read_text(encoding="utf-8", errors="replace")
     if suffix == ".pdf":
         return pdf_to_text(path, lang=lang)
-    if suffix in {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}:
+    if suffix in IMAGE_SUFFIXES:
         return image_to_text(path, lang=lang)
     raise ValueError(f"Format de fichier non pris en charge : {suffix}")
 
