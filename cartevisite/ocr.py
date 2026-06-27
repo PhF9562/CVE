@@ -8,8 +8,10 @@ on lève alors une :class:`OCRUnavailableError` explicite.
 
 from __future__ import annotations
 
+import shutil
+import sys
 from pathlib import Path
-from typing import List, Union
+from typing import Iterator, List, Union
 
 from .models import Contact
 from .parser import parse_contact
@@ -17,6 +19,56 @@ from .parser import parse_contact
 
 class OCRUnavailableError(RuntimeError):
     """Levée lorsqu'une dépendance OCR requise est absente."""
+
+
+_TESSERACT_CONFIGURED = False
+
+
+def _candidate_tesseract_paths() -> Iterator[Path]:
+    """Emplacements possibles du binaire Tesseract, du plus au moins sûr."""
+    # 1) Binaire embarqué dans l'exécutable PyInstaller (le cas échéant).
+    bundle = getattr(sys, "_MEIPASS", None)
+    if bundle:
+        for name in ("tesseract.exe", "tesseract",
+                     "Tesseract-OCR/tesseract.exe", "tesseract/tesseract"):
+            yield Path(bundle) / name
+    # 2) Binaire présent dans le PATH.
+    found = shutil.which("tesseract")
+    if found:
+        yield Path(found)
+    # 3) Emplacements d'installation usuels (l'installeur Windows n'ajoute
+    #    pas Tesseract au PATH par défaut).
+    for path in (
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        "/opt/homebrew/bin/tesseract",
+        "/usr/local/bin/tesseract",
+        "/usr/bin/tesseract",
+    ):
+        yield Path(path)
+
+
+def _configure_tesseract() -> None:
+    """Pointe pytesseract vers un binaire Tesseract trouvé sur le système.
+
+    Idempotent et défensif : toute erreur est ignorée (l'appel OCR lèvera
+    alors une erreur explicite plus loin).
+    """
+    global _TESSERACT_CONFIGURED
+    if _TESSERACT_CONFIGURED:
+        return
+    _TESSERACT_CONFIGURED = True
+    try:
+        import pytesseract
+    except Exception:  # pragma: no cover - dépend de l'environnement
+        return
+    for candidate in _candidate_tesseract_paths():
+        try:
+            if candidate.exists():
+                pytesseract.pytesseract.tesseract_cmd = str(candidate)
+                return
+        except Exception:  # pragma: no cover - défensif
+            continue
 
 
 def dependencies_status() -> dict:
@@ -72,6 +124,7 @@ def image_to_text(image_path: Union[str, Path], lang: str = "fra+eng") -> str:
     """Applique l'OCR sur un fichier image et renvoie le texte brut."""
     cv2 = _require("cv2", "opencv-python")
     pytesseract = _require("pytesseract", "pytesseract")
+    _configure_tesseract()
 
     image = cv2.imread(str(image_path))
     if image is None:
@@ -93,6 +146,7 @@ def pdf_to_text(pdf_path: Union[str, Path], lang: str = "fra+eng") -> str:
     pytesseract = _require("pytesseract", "pytesseract")
     np = _require("numpy", "numpy")
     cv2 = _require("cv2", "opencv-python")
+    _configure_tesseract()
 
     pages = convert_from_path(str(pdf_path))
     texts: List[str] = []

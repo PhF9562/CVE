@@ -61,6 +61,38 @@ brew install tesseract poppler
 > `tkinter` est fourni avec la plupart des distributions Python. Sur
 > Debian/Ubuntu : `sudo apt install python3-tk`.
 
+## Application clé en main (exécutable Windows / macOS)
+
+Pour un usage **sans installer Python**, des exécutables double-cliquables
+sont construits automatiquement par GitHub Actions
+(`.github/workflows/build-app.yml`) :
+
+- **Windows** : `Numeriseur-Cartes.exe`
+- **macOS** : `Numeriseur-Cartes.app`
+
+Comment les obtenir :
+
+1. **Construire** : sur GitHub, onglet *Actions* → *Construire l'application*
+   → *Run workflow* (ou pousser un tag `vX.Y.Z` pour publier une *Release*).
+2. **Télécharger** l'artefact correspondant à votre système et le décompresser.
+3. **Lancer** en double-cliquant. Au premier démarrage, l'application demande
+   votre dossier de travail (voir ci-dessous).
+
+> **OCR (Tesseract).** L'exécutable embarque l'application et ses
+> bibliothèques Python, mais l'OCR s'appuie sur le moteur **Tesseract**, à
+> installer une fois (installeur Windows, `brew install tesseract` sur Mac).
+> L'application le **localise automatiquement** (PATH et emplacements usuels).
+> Sans Tesseract, tout fonctionne (import, saisie, base, export) sauf la
+> reconnaissance automatique du texte.
+
+## Construire l'exécutable localement
+
+```bash
+pip install -r requirements.txt "pyinstaller>=6,<7"
+pyinstaller --noconfirm --clean cartevisite.spec
+# Résultat dans dist/
+```
+
 ## Utilisation
 
 ### Interface graphique
