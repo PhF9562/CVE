@@ -29,11 +29,20 @@ def _scan_cli(path: str) -> int:
     return 0
 
 
-def _batch_cli(base_dir, db_path, lang, move_processed) -> int:
-    from .batch import process_directory
+def _batch_cli(base_dir, db_arg, no_db, lang, move_processed) -> int:
+    from .batch import find_base_dir, process_directory
+
+    base = find_base_dir(base_dir)
+    if no_db:
+        db_path = None
+    elif db_arg is not None:
+        db_path = db_arg  # chemin imposé par l'utilisateur
+    else:
+        # Par défaut, le carnet vit dans le dossier numérisation lui-même.
+        db_path = base / "carnet.db"
 
     result = process_directory(
-        base_dir=base_dir, lang=lang, db_path=db_path, move_processed=move_processed
+        base_dir=base, lang=lang, db_path=db_path, move_processed=move_processed
     )
     print("\n" + result.summary())
     # Code de sortie non nul si rien n'a pu être extrait alors que des
@@ -48,7 +57,11 @@ def main(argv=None) -> int:
         prog="cartevisite",
         description="Numérisation de cartes de visite.",
     )
-    parser.add_argument("--db", default="contacts.db", help="Chemin de la base SQLite.")
+    parser.add_argument(
+        "--db", default=None,
+        help="Chemin de la base SQLite (défaut : contacts.db pour l'interface, "
+             "<numérisation>/carnet.db en mode --batch).",
+    )
     parser.add_argument("--export-dir", default=".", help="Dossier des exports.")
     parser.add_argument("--scan", metavar="FICHIER", help="Analyser un fichier en console puis quitter.")
     parser.add_argument(
@@ -76,12 +89,11 @@ def main(argv=None) -> int:
 
     if args.batch is not None:
         base_dir = args.batch or None  # "" => auto-détection
-        db_path = None if args.no_db else args.db
-        return _batch_cli(base_dir, db_path, args.lang, not args.no_move)
+        return _batch_cli(base_dir, args.db, args.no_db, args.lang, not args.no_move)
 
     from .gui import App
 
-    App(db_path=args.db, export_dir=args.export_dir).mainloop()
+    App(db_path=args.db or "contacts.db", export_dir=args.export_dir).mainloop()
     return 0
 
 

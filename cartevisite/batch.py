@@ -179,17 +179,23 @@ def process_directory(
         log("Aucun contact extrait : rien à exporter.")
         return result
 
-    # Stockage optionnel en base locale.
+    # Stockage optionnel en base locale. Lorsqu'une base est utilisée, les
+    # exports portent sur TOUT le carnet d'adresses (et non sur le seul lot
+    # courant) : les scans étant archivés dans « traités », contacts.json
+    # resterait sinon réduit au dernier lot et perdrait les contacts des
+    # passages précédents.
+    export_source = result.contacts
     if db_path is not None:
         from .database import ContactDatabase
 
         with ContactDatabase(db_path) as db:
             for contact in result.contacts:
                 db.add(contact)
+            export_source = db.all()
 
     # Exports dans CV-JSON et CV-VCF.
-    result.json_path = export_json(result.contacts, base)
-    result.vcf_paths = export_vcards(result.contacts, base)
+    result.json_path = export_json(export_source, base)
+    result.vcf_paths = export_vcards(export_source, base)
     log(
         f"Export terminé : {result.json_path} et "
         f"{len(result.vcf_paths)} fichier(s) vCard dans {base / VCF_DIR}."

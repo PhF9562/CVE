@@ -128,8 +128,9 @@ python -m cartevisite --scan chemin/vers/carte.jpg
 python -m unittest discover -s tests
 ```
 
-34 tests couvrent le parseur OCR, la base SQLite, les exports et le
-traitement par lots du dossier (extraction, archivage, collisions).
+36 tests couvrent le parseur OCR, la base SQLite, les exports et le
+traitement par lots du dossier (extraction, archivage, collisions,
+cumul des exports entre passages).
 
 ## Licence
 

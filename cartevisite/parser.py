@@ -171,9 +171,10 @@ def _find_name(lines: List[str], excluded: set) -> Optional[str]:
             continue
         if _looks_like_name(line):
             return line.strip()
-    # Repli : première ligne non exclue et non vide.
+    # Repli : première ligne non exclue et non vide, en évitant une ligne
+    # essentiellement numérique (téléphone résiduel du type « mobile : 06 … »).
     for line in lines:
-        if line not in excluded and line.strip():
+        if line not in excluded and line.strip() and not _looks_like_phone(line):
             return line.strip()
     return None
 

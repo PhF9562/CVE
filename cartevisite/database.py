@@ -49,6 +49,10 @@ class ContactDatabase:
         self._conn = sqlite3.connect(self.path)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
+        # Le traitement par lots (interface) ouvre une seconde connexion dans
+        # un thread de travail ; un délai d'attente évite une erreur immédiate
+        # « database is locked » si une lecture survient pendant une écriture.
+        self._conn.execute("PRAGMA busy_timeout = 5000")
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
 

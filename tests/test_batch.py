@@ -129,6 +129,31 @@ class TestProcessDirectory(unittest.TestCase):
             self.assertEqual((processed / "carte_a.txt").read_text(encoding="utf-8"), "ancien")
             self.assertTrue((processed / "carte_a_2.txt").exists())
 
+    def test_json_is_cumulative_across_runs(self):
+        # Régression : avec archivage des scans, contacts.json doit cumuler
+        # les contacts de tous les passages, pas seulement du dernier.
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp) / "numérisation"
+            ensure_layout(base)
+            db_path = Path(tmp) / "contacts.db"
+
+            (base / "CV-Scan" / "c1.txt").write_text(CARD_A, encoding="utf-8")
+            process_directory(base_dir=base, db_path=db_path, log=lambda *_: None)
+
+            (base / "CV-Scan" / "c2.txt").write_text(CARD_B, encoding="utf-8")
+            result = process_directory(base_dir=base, db_path=db_path, log=lambda *_: None)
+
+            data = json.loads(result.json_path.read_text(encoding="utf-8"))
+            emails = sorted(c["email"] for c in data)
+            self.assertEqual(emails, ["jean.dupont@acme.com", "marie@globex.io"])
+            # Un fichier vCard par contact cumulé.
+            self.assertEqual(len(list((base / "CV-VCF").glob("*.vcf"))), 2)
+
+    def test_name_fallback_skips_phone_line(self):
+        from cartevisite.parser import parse_contact
+        contact = parse_contact("mobile: 06 12 34 56 78\njean@acme.com")
+        self.assertNotIn("06", contact.full_name)
+
     def test_empty_scan_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp) / "numérisation"
