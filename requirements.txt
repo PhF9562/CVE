@@ -1,0 +1,16 @@
+# Dépendances optionnelles pour l'OCR et le traitement d'image.
+# Le cœur de l'application (modèles, base, parseur, export) et son
+# interface tkinter fonctionnent sans ces paquets ; ils ne sont requis
+# que pour la reconnaissance automatique du texte des cartes.
+
+opencv-python>=4.5      # prétraitement et redressement des images
+pytesseract>=0.3.8      # interface Python vers le moteur Tesseract OCR
+Pillow>=9.0             # manipulation d'images
+numpy>=1.21             # tableaux d'images
+pdf2image>=1.16         # conversion des PDF en images (OCR des PDF)
+
+# Remarque : pytesseract nécessite que le moteur « Tesseract » soit
+# installé sur le système, et pdf2image requiert « poppler ».
+#   - Debian/Ubuntu : sudo apt install tesseract-ocr tesseract-ocr-fra poppler-utils
+#   - macOS (brew)  : brew install tesseract poppler
+#   - Windows       : installeur Tesseract + binaires poppler

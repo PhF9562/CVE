@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Base de données et exports générés par l'application
+*.db
+*.sqlite
+*.sqlite3
+/CV-JSON/
+/CV-VCF/
+
+# Outils
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environnements / éditeurs
+.idea/
+.vscode/
+*.swp
+.DS_Store
