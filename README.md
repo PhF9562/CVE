@@ -9,6 +9,9 @@ les exporter en **JSON** et **vCard (.vcf)**.
 
 - 📷 **Prendre une photo** d'une carte via la caméra, ou 📂 **importer** un
   fichier JPG, PNG ou PDF.
+- 📁 **Scanner un dossier entier** : balayage (récursif ou non) d'un répertoire
+  pour découvrir et analyser automatiquement toutes les cartes en lot ; chaque
+  fichier illisible est isolé sans interrompre le traitement.
 - 🔎 **OCR automatique** : prétraitement de l'image (niveaux de gris,
   débruitage, correction d'orientation, seuillage adaptatif) puis lecture du
   texte avec Tesseract.
@@ -32,6 +35,7 @@ Le projet sépare un **cœur sans dépendance** (utilisable et testable partout)
 | `cardscan/parser.py`    | Analyse du texte OCR → champs          | stdlib             |
 | `cardscan/database.py`  | Stockage SQLite (CRUD + recherche)     | stdlib             |
 | `cardscan/export.py`    | Export JSON et vCard                   | stdlib             |
+| `cardscan/scanner.py`   | Balayage de dossiers (lot)             | stdlib (découverte)|
 | `cardscan/ocr.py`       | Prétraitement image + Tesseract        | opencv, pytesseract, Pillow, pdf2image |
 | `cardscan/camera.py`    | Capture webcam                         | opencv             |
 | `cardscan/gui.py`       | Interface graphique                    | tkinter            |
@@ -72,6 +76,11 @@ python -m cardscan
 ```bash
 python -m cardscan carte.jpg          # affiche les champs détectés
 python -m cardscan carte.jpg --json   # sortie JSON
+
+# Balayage d'un dossier entier (récursif par défaut)
+python -m cardscan ./cartes/          # analyse toutes les cartes du dossier
+python -m cardscan ./cartes/ --save   # ...et les enregistre dans le carnet
+python -m cardscan ./cartes/ --no-recursive   # sans les sous-dossiers
 ```
 
 ## Tests

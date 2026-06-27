@@ -82,6 +82,9 @@ class CardScanApp:
         ttk.Button(
             actions, text="📂  Importer un fichier", command=self.import_file
         ).pack(side=tk.LEFT, padx=4)
+        ttk.Button(
+            actions, text="📁  Scanner un dossier", command=self.scan_folder
+        ).pack(side=tk.LEFT, padx=4)
 
         self.status = ttk.Label(actions, text="Prêt.", foreground="#555")
         self.status.pack(side=tk.RIGHT)
@@ -190,6 +193,85 @@ class CardScanApp:
         self.root.after(
             0, lambda: self._set_status(f"Carte analysée : {Path(path).name}")
         )
+
+    def scan_folder(self) -> None:
+        """Balaye un dossier entier et enregistre toutes les cartes trouvées."""
+        if not _TK_AVAILABLE:
+            return
+        directory = filedialog.askdirectory(
+            title="Choisir un dossier contenant des cartes de visite"
+        )
+        if not directory:
+            return
+        recursive = messagebox.askyesno(
+            "Sous-dossiers",
+            "Inclure aussi les sous-dossiers dans le balayage ?",
+        )
+        self._set_status("Balayage du dossier…")
+        threading.Thread(
+            target=self._run_folder_scan,
+            args=(directory, recursive),
+            daemon=True,
+        ).start()
+
+    def _run_folder_scan(self, directory: str, recursive: bool) -> None:
+        """Analyse en lot (thread de fond) puis enregistre les contacts."""
+        try:
+            from .scanner import find_card_files, iter_scan_directory
+        except Exception as exc:  # noqa: BLE001
+            self.root.after(0, lambda: self._handle_error(exc))
+            return
+
+        try:
+            files = find_card_files(directory, recursive=recursive)
+        except Exception as exc:  # noqa: BLE001
+            self.root.after(0, lambda: self._handle_error(exc))
+            return
+
+        if not files:
+            self.root.after(
+                0,
+                lambda: messagebox.showinfo(
+                    "Balayage", "Aucune image ou PDF trouvé dans ce dossier."
+                ),
+            )
+            self.root.after(0, lambda: self._set_status("Dossier vide."))
+            return
+
+        total = len(files)
+        saved = 0
+        failed = 0
+        for index, result in enumerate(
+            iter_scan_directory(directory, recursive=recursive), start=1
+        ):
+            name = result.path.name
+            self.root.after(
+                0,
+                lambda i=index, n=name: self._set_status(
+                    f"Analyse {i}/{total} : {n}"
+                ),
+            )
+            if result.ok and result.contact and not result.contact.is_empty():
+                # L'accès à la base se fait depuis le thread de fond ; la
+                # connexion SQLite par défaut tolère un seul thread, donc on
+                # délègue l'écriture au thread Tk.
+                self.root.after(0, self.db.add, result.contact)
+                saved += 1
+            elif not result.ok:
+                failed += 1
+
+        def _finish():
+            self.refresh_contacts()
+            messagebox.showinfo(
+                "Balayage terminé",
+                f"{saved} contact(s) enregistré(s) sur {total} fichier(s).\n"
+                f"{failed} échec(s) d'analyse.",
+            )
+            self._set_status(
+                f"Balayage terminé : {saved}/{total} carte(s) enregistrée(s)."
+            )
+
+        self.root.after(0, _finish)
 
     # ------------------------------------------------------------------
     # Gestion du formulaire et des contacts
