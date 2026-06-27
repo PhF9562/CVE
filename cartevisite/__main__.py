@@ -29,10 +29,12 @@ def _scan_cli(path: str) -> int:
     return 0
 
 
-def _batch_cli(base_dir, db_path, lang) -> int:
+def _batch_cli(base_dir, db_path, lang, move_processed) -> int:
     from .batch import process_directory
 
-    result = process_directory(base_dir=base_dir, lang=lang, db_path=db_path)
+    result = process_directory(
+        base_dir=base_dir, lang=lang, db_path=db_path, move_processed=move_processed
+    )
     print("\n" + result.summary())
     # Code de sortie non nul si rien n'a pu être extrait alors que des
     # scans étaient présents.
@@ -62,6 +64,11 @@ def main(argv=None) -> int:
         "--no-db", action="store_true",
         help="En mode --batch, ne pas enregistrer les contacts en base.",
     )
+    parser.add_argument(
+        "--no-move", action="store_true",
+        help="En mode --batch, ne pas déplacer les scans traités vers "
+             "CV-Scan/traités.",
+    )
     args = parser.parse_args(argv)
 
     if args.scan:
@@ -70,7 +77,7 @@ def main(argv=None) -> int:
     if args.batch is not None:
         base_dir = args.batch or None  # "" => auto-détection
         db_path = None if args.no_db else args.db
-        return _batch_cli(base_dir, db_path, args.lang)
+        return _batch_cli(base_dir, db_path, args.lang, not args.no_move)
 
     from .gui import App
 

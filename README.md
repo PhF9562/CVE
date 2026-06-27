@@ -81,9 +81,10 @@ Organisez votre dossier de travail (par exemple sous
 
 ```
 numérisation/
-├── CV-Scan/   ← déposez ici les scans à analyser (JPG, PNG, PDF, TIFF, .txt)
-├── CV-VCF/    ← fichiers vCard (.vcf) générés, un par contact
-└── CV-JSON/   ← données extraites au format JSON (contacts.json)
+├── CV-Scan/         ← déposez ici les scans à analyser (JPG, PNG, PDF, TIFF, .txt)
+│   └── traités/     ← les scans traités avec succès y sont archivés automatiquement
+├── CV-VCF/          ← fichiers vCard (.vcf) générés, un par contact
+└── CV-JSON/         ← données extraites au format JSON (contacts.json)
 ```
 
 Lancez l'analyse et l'extraction de tout le dossier `CV-Scan` :
@@ -96,12 +97,19 @@ python -m cartevisite --batch
 python -m cartevisite --batch "/chemin/vers/OneDrive/numérisation"
 
 # Options : --lang fra+eng   --no-db (ne pas enregistrer en base)
+#           --no-move (ne pas archiver les scans traités)
 ```
 
 Le dossier peut aussi être imposé via la variable d'environnement
 `CV_BASE_DIR`. Depuis l'interface graphique, le bouton **📂 Traiter
 CV-Scan** réalise la même opération. Chaque scan illisible est signalé
 dans le rapport sans interrompre le lot.
+
+Après un export réussi, chaque scan traité est déplacé dans
+`CV-Scan/traités/` : un nouveau passage ne ré-analyse donc que les
+nouvelles cartes. Les scans en échec restent en place pour être
+retentés. Utilisez `--no-move` pour conserver tous les scans à leur
+emplacement.
 
 > Les fichiers `.txt` (texte déjà reconnu) sont acceptés en entrée et
 > traités sans Tesseract — pratique pour tester le pipeline.
@@ -120,8 +128,8 @@ python -m cartevisite --scan chemin/vers/carte.jpg
 python -m unittest discover -s tests
 ```
 
-30 tests couvrent le parseur OCR, la base SQLite, les exports et le
-traitement par lots du dossier.
+34 tests couvrent le parseur OCR, la base SQLite, les exports et le
+traitement par lots du dossier (extraction, archivage, collisions).
 
 ## Licence
 

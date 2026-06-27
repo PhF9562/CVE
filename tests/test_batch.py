@@ -83,6 +83,52 @@ class TestProcessDirectory(unittest.TestCase):
             with ContactDatabase(db_path) as db:
                 self.assertEqual(db.count(), 2)
 
+    def test_processed_files_are_moved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = _make_tree(tmp)
+            result = process_directory(base_dir=base, log=lambda *_: None)
+
+            scan_dir = base / "CV-Scan"
+            processed = scan_dir / "traités"
+            # Les deux scans réussis sont déplacés…
+            self.assertEqual(len(result.moved_files), 2)
+            self.assertTrue((processed / "carte_a.txt").exists())
+            self.assertTrue((processed / "carte_b.txt").exists())
+            # …et ne sont plus à la racine de CV-Scan.
+            self.assertFalse((scan_dir / "carte_a.txt").exists())
+            self.assertFalse((scan_dir / "carte_b.txt").exists())
+            # Un second passage ne trouve plus rien à traiter.
+            again = process_directory(base_dir=base, log=lambda *_: None)
+            self.assertEqual(again.contacts, [])
+
+    def test_no_move_keeps_scans(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = _make_tree(tmp)
+            process_directory(base_dir=base, move_processed=False, log=lambda *_: None)
+            self.assertTrue((base / "CV-Scan" / "carte_a.txt").exists())
+            self.assertFalse((base / "CV-Scan" / "traités").exists())
+
+    def test_failed_scan_not_moved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = _make_tree(tmp)
+            # Un scan vide ne produit aucun contact : il reste en place.
+            (base / "CV-Scan" / "vide.txt").write_text("   \n", encoding="utf-8")
+            process_directory(base_dir=base, log=lambda *_: None)
+            self.assertTrue((base / "CV-Scan" / "vide.txt").exists())
+            self.assertFalse((base / "CV-Scan" / "traités" / "vide.txt").exists())
+
+    def test_move_handles_name_collision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = _make_tree(tmp)
+            # Pré-remplit traités/ avec un fichier homonyme.
+            processed = base / "CV-Scan" / "traités"
+            processed.mkdir(parents=True, exist_ok=True)
+            (processed / "carte_a.txt").write_text("ancien", encoding="utf-8")
+            process_directory(base_dir=base, log=lambda *_: None)
+            # L'ancien fichier est préservé, le nouveau est suffixé.
+            self.assertEqual((processed / "carte_a.txt").read_text(encoding="utf-8"), "ancien")
+            self.assertTrue((processed / "carte_a_2.txt").exists())
+
     def test_empty_scan_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp) / "numérisation"

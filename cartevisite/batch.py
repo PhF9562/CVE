@@ -26,6 +26,7 @@ from .ocr import SUPPORTED_SUFFIXES, extract_text
 from .parser import parse_contact
 
 SCAN_DIR = "CV-Scan"
+PROCESSED_DIR = "traités"  # sous-dossier de CV-Scan pour les scans déjà traités
 
 
 @dataclass
@@ -38,6 +39,7 @@ class BatchResult:
     failures: List[tuple] = field(default_factory=list)  # (fichier, message)
     json_path: Optional[Path] = None
     vcf_paths: List[Path] = field(default_factory=list)
+    moved_files: List[Path] = field(default_factory=list)
 
     def summary(self) -> str:
         lines = [
@@ -50,6 +52,11 @@ class BatchResult:
             lines.append(f"JSON           : {self.json_path}")
         if self.vcf_paths:
             lines.append(f"vCard          : {len(self.vcf_paths)} fichier(s) dans {VCF_DIR}/")
+        if self.moved_files:
+            lines.append(
+                f"Déplacés       : {len(self.moved_files)} scan(s) vers "
+                f"{SCAN_DIR}/{PROCESSED_DIR}/"
+            )
         for name, msg in self.failures:
             lines.append(f"  ⚠ {name} : {msg}")
         return "\n".join(lines)
@@ -94,7 +101,11 @@ def ensure_layout(base_dir: Path) -> None:
 
 
 def list_scans(base_dir: Path) -> List[Path]:
-    """Renvoie les fichiers de ``CV-Scan`` exploitables, triés par nom."""
+    """Renvoie les fichiers de ``CV-Scan`` exploitables, triés par nom.
+
+    Le sous-dossier ``traités`` est ignoré : ``iterdir`` ne parcourt pas la
+    récursion et ``is_file()`` écarte les dossiers.
+    """
     scan_dir = base_dir / SCAN_DIR
     if not scan_dir.is_dir():
         return []
@@ -105,19 +116,37 @@ def list_scans(base_dir: Path) -> List[Path]:
     return sorted(files, key=lambda p: p.name.lower())
 
 
+def _move_to_processed(path: Path, processed_dir: Path) -> Path:
+    """Déplace un scan vers ``processed_dir`` en évitant les collisions de nom."""
+    processed_dir.mkdir(parents=True, exist_ok=True)
+    target = processed_dir / path.name
+    if target.exists():
+        suffix = 1
+        while True:
+            suffix += 1
+            candidate = processed_dir / f"{path.stem}_{suffix}{path.suffix}"
+            if not candidate.exists():
+                target = candidate
+                break
+    return Path(path.replace(target))
+
+
 def process_directory(
     base_dir: Optional[Union[str, Path]] = None,
     lang: str = "fra+eng",
     db_path: Optional[Union[str, Path]] = None,
+    move_processed: bool = True,
     log=print,
 ) -> BatchResult:
     """Analyse tous les scans de ``CV-Scan`` et exporte JSON + vCard.
 
-    :param base_dir: dossier ``numérisation`` (auto-détecté si ``None``).
-    :param lang:     langues Tesseract (ex. ``"fra+eng"``).
-    :param db_path:  si fourni, les contacts sont aussi enregistrés en base.
-    :param log:      fonction d'affichage de la progression (``print`` par défaut).
-    :returns:        un :class:`BatchResult` détaillant le traitement.
+    :param base_dir:       dossier ``numérisation`` (auto-détecté si ``None``).
+    :param lang:           langues Tesseract (ex. ``"fra+eng"``).
+    :param db_path:        si fourni, les contacts sont aussi enregistrés en base.
+    :param move_processed: déplacer les scans traités avec succès vers
+                           ``CV-Scan/traités`` (évite de les ré-analyser).
+    :param log:            fonction d'affichage de la progression.
+    :returns:              un :class:`BatchResult` détaillant le traitement.
     """
     base = find_base_dir(base_dir)
     ensure_layout(base)
@@ -128,6 +157,7 @@ def process_directory(
         log(f"Aucun scan exploitable dans {base / SCAN_DIR}.")
         return result
 
+    succeeded: List[Path] = []  # scans dont l'extraction a réussi (à déplacer)
     log(f"{len(scans)} scan(s) à traiter dans {base / SCAN_DIR}…")
     for path in scans:
         try:
@@ -139,6 +169,7 @@ def process_directory(
                 continue
             result.contacts.append(contact)
             result.processed_files.append(path.name)
+            succeeded.append(path)
             log(f"  ✓ {path.name} → {contact.display_label()}")
         except Exception as exc:  # un scan défaillant n'arrête pas le lot
             result.failures.append((path.name, str(exc)))
@@ -163,4 +194,19 @@ def process_directory(
         f"Export terminé : {result.json_path} et "
         f"{len(result.vcf_paths)} fichier(s) vCard dans {base / VCF_DIR}."
     )
+
+    # Archivage des scans traités avec succès (seulement après export réussi).
+    if move_processed and succeeded:
+        processed_dir = base / SCAN_DIR / PROCESSED_DIR
+        for path in succeeded:
+            try:
+                moved = _move_to_processed(path, processed_dir)
+                result.moved_files.append(moved)
+            except OSError as exc:  # déplacement impossible : on signale sans bloquer
+                log(f"  ⚠ déplacement de {path.name} impossible : {exc}")
+        log(
+            f"{len(result.moved_files)} scan(s) déplacé(s) vers "
+            f"{processed_dir}."
+        )
+
     return result
