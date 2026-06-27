@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Données applicatives et exports générés
+*.db
+CV-JSON/
+CV-VCF/
+_capture.png
+
+# Outils
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Systèmes
+.DS_Store
+Thumbs.db

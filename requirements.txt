@@ -1,0 +1,12 @@
+# Dépendances pour l'OCR et le traitement d'image.
+# La logique métier (base de données, analyse, export) fonctionne sans elles ;
+# elles ne sont nécessaires que pour numériser réellement des cartes.
+
+pytesseract>=0.3.10      # interface Python vers le moteur Tesseract OCR
+Pillow>=9.0              # chargement et manipulation d'images
+opencv-python>=4.5       # prétraitement (niveaux de gris, redressement) et caméra
+pdf2image>=1.16          # conversion des PDF en images (nécessite poppler)
+
+# Prérequis système (à installer séparément) :
+#   - Tesseract OCR     (apt install tesseract-ocr tesseract-ocr-fra)
+#   - poppler-utils     (apt install poppler-utils)  pour le support PDF
