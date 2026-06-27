@@ -16,7 +16,8 @@ from pathlib import Path
 
 from .contact import Contact
 from .database import CarnetAdresses
-from . import exporter, ocr
+from . import config, exporter, ocr
+from .config import EmplacementDonnees
 
 # tkinter fait partie de la bibliothèque standard mais peut être absent de
 # certaines installations minimales : on diffère l'import vers le lancement.
@@ -36,14 +37,18 @@ class Application:
         ("notes", "Notes"),
     )
 
-    def __init__(self, chemin_db: str = "contacts.db") -> None:
+    def __init__(self, emplacement: EmplacementDonnees | str | None = None) -> None:
         import tkinter as tk
         from tkinter import ttk
 
         self.tk = tk
         self.ttk = ttk
 
-        self.carnet = CarnetAdresses(chemin_db)
+        if not isinstance(emplacement, EmplacementDonnees):
+            emplacement = config.resoudre_emplacement(emplacement)
+        self.emplacement = emplacement.creer()
+
+        self.carnet = CarnetAdresses(self.emplacement.chemin_db)
         self._file_resultats: "queue.Queue" = queue.Queue()
         self._contact_courant: Contact | None = None
         self._champ_vars: dict[str, "tk.StringVar"] = {}
@@ -78,6 +83,18 @@ class Application:
         ttk.Button(
             barre, text="⬇ Exporter en vCard", command=self.exporter_vcard
         ).pack(side="left", padx=4)
+
+        ttk.Button(
+            barre, text="📁 Dossier de travail…", command=self.changer_repertoire
+        ).pack(side="right", padx=4)
+
+        # Ligne indiquant le répertoire de travail courant.
+        self.var_repertoire = tk.StringVar()
+        ttk.Label(
+            self.racine, textvariable=self.var_repertoire, anchor="w",
+            padding=(10, 0),
+        ).pack(fill="x")
+        self._maj_libelle_repertoire()
 
         self.var_statut = tk.StringVar(value="Prêt.")
         ttk.Label(
@@ -124,6 +141,33 @@ class Application:
             side="left", padx=4
         )
 
+    # -- Répertoire de travail ---------------------------------------------
+    def _maj_libelle_repertoire(self) -> None:
+        self.var_repertoire.set(f"Dossier de travail : {self.emplacement.base}")
+
+    def changer_repertoire(self) -> None:
+        """Demande un nouveau répertoire de travail, le mémorise et recharge."""
+        from tkinter import filedialog
+
+        choix = filedialog.askdirectory(
+            title="Choisir le dossier de travail",
+            initialdir=str(self.emplacement.base),
+            mustexist=True,
+        )
+        if not choix:
+            return
+
+        # Bascule sur le nouvel emplacement.
+        self.carnet.fermer()
+        self.emplacement = EmplacementDonnees(choix).creer()
+        self.carnet = CarnetAdresses(self.emplacement.chemin_db)
+        config.enregistrer_repertoire(self.emplacement.base)
+
+        self.nouveau_contact()
+        self.rafraichir_liste()
+        self._maj_libelle_repertoire()
+        self.var_statut.set(f"Dossier de travail : {self.emplacement.base}")
+
     # -- Actions d'import / OCR --------------------------------------------
     def importer_fichier(self) -> None:
         from tkinter import filedialog
@@ -169,7 +213,7 @@ class Application:
                 if touche == 27:  # ÉCHAP
                     break
                 if touche == 32:  # ESPACE
-                    capture_path = Path("capture_carte.png")
+                    capture_path = self.emplacement.chemin_capture
                     cv2.imwrite(str(capture_path), image)
                     break
         finally:
@@ -302,7 +346,7 @@ class Application:
         if not contacts:
             messagebox.showinfo("Export", "Aucun contact à exporter.")
             return
-        chemin = exporter.exporter_json(contacts)
+        chemin = exporter.exporter_json(contacts, dossier=self.emplacement.dossier_json)
         messagebox.showinfo(
             "Export JSON", f"{len(contacts)} contact(s) exporté(s) dans :\n{chemin}"
         )
@@ -315,10 +359,10 @@ class Application:
         if not contacts:
             messagebox.showinfo("Export", "Aucun contact à exporter.")
             return
-        chemins = exporter.exporter_vcards(contacts)
+        chemins = exporter.exporter_vcards(contacts, dossier=self.emplacement.dossier_vcf)
         messagebox.showinfo(
             "Export vCard",
-            f"{len(chemins)} fichier(s) .vcf créé(s) dans le dossier « {exporter.DOSSIER_VCF} ».",
+            f"{len(chemins)} fichier(s) .vcf créé(s) dans :\n{self.emplacement.dossier_vcf}",
         )
         self.var_statut.set(f"Export vCard : {len(chemins)} fichier(s).")
 
@@ -330,6 +374,6 @@ class Application:
             self.carnet.fermer()
 
 
-def lancer_application(chemin_db: str = "contacts.db") -> None:
+def lancer_application(emplacement: EmplacementDonnees | str | None = None) -> None:
     """Point d'entrée pratique pour démarrer l'interface graphique."""
-    Application(chemin_db).lancer()
+    Application(emplacement).lancer()

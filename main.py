@@ -9,6 +9,13 @@ Usage :
     python main.py export-vcf           # exporte les contacts existants en vCard
     python main.py check                # vérifie les dépendances OCR
 
+Répertoire de travail : par défaut, la base de contacts et les exports sont
+rangés dans le dossier mémorisé (ou le dossier courant). On peut imposer un
+autre dossier avec l'option ``--data-dir`` :
+
+    python main.py --data-dir ~/MesCartes scan carte.jpg --enregistrer
+    python main.py --data-dir ~/MesCartes export-vcf
+
 Le mode graphique nécessite tkinter ; les modes en ligne de commande
 fonctionnent sans interface.
 """
@@ -18,7 +25,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from cartes_visite import exporter
+from cartes_visite import config, exporter
 from cartes_visite.database import CarnetAdresses
 
 
@@ -29,7 +36,7 @@ def _cmd_gui(args: argparse.Namespace) -> int:
         print(f"Interface graphique indisponible : {exc}", file=sys.stderr)
         print("Essayez les commandes en ligne de commande (voir --help).", file=sys.stderr)
         return 1
-    lancer_application(args.db)
+    lancer_application(args.emplacement)
     return 0
 
 
@@ -50,7 +57,7 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     if args.enregistrer:
         with CarnetAdresses(args.db) as carnet:
             carnet.ajouter(contact)
-        print("\nContact enregistré dans le carnet d'adresses.")
+        print(f"\nContact enregistré dans : {args.db}")
     return 0
 
 
@@ -60,7 +67,7 @@ def _cmd_export_json(args: argparse.Namespace) -> int:
     if not contacts:
         print("Aucun contact à exporter.")
         return 0
-    chemin = exporter.exporter_json(contacts)
+    chemin = exporter.exporter_json(contacts, dossier=args.emplacement.dossier_json)
     print(f"{len(contacts)} contact(s) exporté(s) dans {chemin}")
     return 0
 
@@ -71,8 +78,8 @@ def _cmd_export_vcf(args: argparse.Namespace) -> int:
     if not contacts:
         print("Aucun contact à exporter.")
         return 0
-    chemins = exporter.exporter_vcards(contacts)
-    print(f"{len(chemins)} fichier(s) .vcf créé(s) dans le dossier « {exporter.DOSSIER_VCF} ».")
+    chemins = exporter.exporter_vcards(contacts, dossier=args.emplacement.dossier_vcf)
+    print(f"{len(chemins)} fichier(s) .vcf créé(s) dans {args.emplacement.dossier_vcf}")
     return 0
 
 
@@ -94,7 +101,16 @@ def construire_parseur() -> argparse.ArgumentParser:
         description="Application de numérisation de cartes de visite."
     )
     parseur.add_argument(
-        "--db", default="contacts.db", help="Chemin de la base SQLite (défaut: contacts.db)"
+        "--data-dir",
+        dest="data_dir",
+        default=None,
+        help="Répertoire de travail (base de contacts + exports). "
+        "Défaut : dernier dossier utilisé, sinon le dossier courant.",
+    )
+    parseur.add_argument(
+        "--db",
+        default=None,
+        help="Chemin explicite de la base SQLite (remplace celui du répertoire de travail).",
     )
     sous = parseur.add_subparsers(dest="commande")
 
@@ -115,6 +131,12 @@ def construire_parseur() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parseur = construire_parseur()
     args = parseur.parse_args(argv)
+
+    # Résout le répertoire de travail puis les chemins concrets.
+    args.emplacement = config.resoudre_emplacement(args.data_dir)
+    # --db explicite a priorité sur le chemin du répertoire de travail.
+    if args.db is None:
+        args.db = str(args.emplacement.chemin_db)
 
     commandes = {
         None: _cmd_gui,

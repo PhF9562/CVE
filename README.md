@@ -81,6 +81,25 @@ python main.py export-json                     # exporte le carnet en JSON
 python main.py export-vcf                       # exporte le carnet en vCard
 ```
 
+### Répertoire de travail
+
+Par défaut, la base de contacts (`contacts.db`) et les exports (`CV-JSON/`,
+`CV-VCF/`) sont rangés dans un **répertoire de travail** : le dernier dossier
+choisi (mémorisé dans `~/.cartes_visite.json`), sinon le dossier courant.
+
+- **En ligne de commande**, on impose le dossier avec `--data-dir` :
+
+  ```bash
+  python main.py --data-dir ~/MesCartes scan carte.jpg --enregistrer
+  python main.py --data-dir ~/MesCartes export-vcf
+  ```
+
+  (`--db` reste disponible pour fixer un chemin de base SQLite précis.)
+
+- **Dans l'interface graphique**, le bouton **📁 Dossier de travail…** permet
+  de choisir le dossier ; le choix est mémorisé pour les prochains lancements,
+  et le chemin courant est affiché en haut de la fenêtre.
+
 ## Tests
 
 Les tests couvrent l'analyse de texte, la base de données et les exports
