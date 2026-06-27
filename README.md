@@ -84,8 +84,16 @@ python main.py export-vcf                       # exporte le carnet en vCard
 ### Répertoire de travail
 
 Par défaut, la base de contacts (`contacts.db`) et les exports (`CV-JSON/`,
-`CV-VCF/`) sont rangés dans un **répertoire de travail** : le dernier dossier
-choisi (mémorisé dans `~/.cartes_visite.json`), sinon le dossier courant.
+`CV-VCF/`) sont rangés dans un **répertoire de travail** détecté automatiquement :
+
+1. le dernier dossier choisi (mémorisé dans `~/.cartes_visite.json`) ;
+2. sinon, **OneDrive** s'il est présent → `<OneDrive>/CartesDeVisite`
+   (données sauvegardées et synchronisées dans le cloud) ;
+3. sinon, `<dossier personnel>/CartesDeVisite`.
+
+OneDrive est repéré via les variables d'environnement (`OneDrive`,
+`OneDriveConsumer`, `OneDriveCommercial`) sous Windows, le dossier `~/OneDrive`,
+ou `~/Library/CloudStorage/OneDrive-*` sous macOS.
 
 - **En ligne de commande**, on impose le dossier avec `--data-dir` :
 

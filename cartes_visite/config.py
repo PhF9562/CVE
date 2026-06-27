@@ -1,14 +1,20 @@
 """Gestion du répertoire de travail et des emplacements de fichiers.
 
 Toutes les données de l'application (base de contacts, exports JSON/vCard,
-captures photo) sont rangées sous un même **répertoire de travail** choisi par
-l'utilisateur. Ce module résout les chemins à partir de ce répertoire et permet
-de mémoriser le dernier dossier utilisé d'une session à l'autre.
+captures photo) sont rangées sous un même **répertoire de travail**.
+
+Par défaut, ce répertoire est détecté automatiquement : si **OneDrive** est
+présent sur la machine, les données vont dans ``<OneDrive>/CartesDeVisite`` (donc
+sauvegardées et synchronisées dans le cloud) ; sinon dans
+``<dossier personnel>/CartesDeVisite``. L'utilisateur peut toujours imposer un
+autre dossier (option ``--data-dir`` ou bouton de l'interface), choix qui est
+alors mémorisé d'une session à l'autre.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from . import exporter
@@ -16,6 +22,9 @@ from . import exporter
 # Noms des fichiers/dossiers créés sous le répertoire de travail.
 NOM_DB = "contacts.db"
 NOM_CAPTURE = "capture_carte.png"
+
+# Sous-dossier créé dans OneDrive (ou ailleurs) pour ranger les données.
+NOM_SOUS_DOSSIER = "CartesDeVisite"
 
 # Fichier de configuration mémorisant le dernier répertoire de travail.
 FICHIER_CONFIG = Path.home() / ".cartes_visite.json"
@@ -57,6 +66,48 @@ class EmplacementDonnees:
         return str(self.base)
 
 
+def detecter_onedrive() -> Path | None:
+    """Tente de localiser le dossier OneDrive de l'utilisateur.
+
+    Ordre de recherche :
+
+    1. les variables d'environnement posées par OneDrive sous Windows
+       (``OneDrive``, ``OneDriveConsumer``, ``OneDriveCommercial``) ;
+    2. ``~/OneDrive`` (Windows/Linux) ;
+    3. ``~/Library/CloudStorage/OneDrive-*`` (macOS, client récent).
+
+    Retourne le premier dossier existant, ou ``None`` si OneDrive est introuvable.
+    """
+    for var in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
+        valeur = os.environ.get(var)
+        if valeur and Path(valeur).is_dir():
+            return Path(valeur)
+
+    accueil = Path.home()
+    candidats: list[Path] = [accueil / "OneDrive"]
+
+    cloud = accueil / "Library" / "CloudStorage"
+    if cloud.is_dir():
+        # ex. OneDrive-Personal, OneDrive-Entreprise…
+        candidats.extend(sorted(cloud.glob("OneDrive*")))
+
+    for candidat in candidats:
+        if candidat.is_dir():
+            return candidat
+    return None
+
+
+def repertoire_par_defaut() -> Path:
+    """Répertoire de travail par défaut.
+
+    Si OneDrive est détecté, les données sont rangées dans
+    ``<OneDrive>/CartesDeVisite`` (sauvegardé et synchronisé dans le cloud).
+    Sinon, on retombe sur ``<dossier personnel>/CartesDeVisite``.
+    """
+    base = detecter_onedrive() or Path.home()
+    return base / NOM_SOUS_DOSSIER
+
+
 def charger_repertoire_enregistre(defaut: str | None = None) -> str | None:
     """Retourne le dernier répertoire de travail mémorisé, ou ``defaut``."""
     try:
@@ -87,13 +138,14 @@ def resoudre_emplacement(
     """Détermine le répertoire de travail à utiliser.
 
     Priorité : argument explicite ``repertoire`` > dernier dossier mémorisé
-    (si ``utiliser_config``) > répertoire courant. Le dossier est créé au passage.
+    (si ``utiliser_config``) > répertoire par défaut (OneDrive si détecté).
+    Le dossier est créé au passage.
     """
     base: str | Path
     if repertoire is not None:
         base = repertoire
-    elif utiliser_config:
-        base = charger_repertoire_enregistre(defaut=".") or "."
+    elif utiliser_config and (memorise := charger_repertoire_enregistre()):
+        base = memorise
     else:
-        base = "."
+        base = repertoire_par_defaut()
     return EmplacementDonnees(base).creer()

@@ -65,5 +65,43 @@ class TestPersistanceConfig(unittest.TestCase):
         self.assertTrue(cible.is_dir())
 
 
+class TestDetectionOneDrive(unittest.TestCase):
+    def setUp(self):
+        # Isole les variables d'environnement OneDrive pendant les tests.
+        self._sauvegarde = {
+            k: os.environ.pop(k, None)
+            for k in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial")
+        }
+
+    def tearDown(self):
+        for k, v in self._sauvegarde.items():
+            if v is not None:
+                os.environ[k] = v
+            else:
+                os.environ.pop(k, None)
+
+    def test_detecte_via_variable_environnement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["OneDrive"] = tmp
+            self.assertEqual(config.detecter_onedrive(), Path(tmp))
+
+    def test_variable_pointant_vers_dossier_inexistant_ignoree(self):
+        os.environ["OneDrive"] = "/chemin/qui/n/existe/pas"
+        # Sans dossier ~/OneDrive non plus, doit retourner None ou un vrai dossier.
+        resultat = config.detecter_onedrive()
+        self.assertNotEqual(resultat, Path("/chemin/qui/n/existe/pas"))
+
+    def test_defaut_utilise_onedrive_et_sous_dossier(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["OneDrive"] = tmp
+            defaut = config.repertoire_par_defaut()
+            self.assertEqual(defaut, Path(tmp) / config.NOM_SOUS_DOSSIER)
+
+    def test_defaut_sans_onedrive_retombe_sur_accueil(self):
+        # Aucune variable, et on suppose l'absence de ~/OneDrive en CI.
+        defaut = config.repertoire_par_defaut()
+        self.assertEqual(defaut.name, config.NOM_SOUS_DOSSIER)
+
+
 if __name__ == "__main__":
     unittest.main()
