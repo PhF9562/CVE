@@ -1,1 +1,151 @@
-# CVE
+# CVE — Numériseur de cartes de visite
+
+[![CI](https://github.com/PhF9562/CVE/actions/workflows/ci.yml/badge.svg)](https://github.com/PhF9562/CVE/actions/workflows/ci.yml)
+
+Application personnelle pour **numériser des cartes de visite**, extraire
+automatiquement les informations de contact par OCR, les ranger dans un carnet
+d'adresses local et les **exporter en JSON et vCard (.vcf)**.
+
+L'application vise un utilisateur non technique : interface épurée, deux boutons
+pour scanner, écran de validation des champs détectés, et export en un clic.
+
+## Fonctionnalités
+
+- 📷 **Prendre une photo** (webcam) ou 📂 **importer un fichier** (JPG, PNG, PDF…).
+- 🔍 **Prétraitement d'image** (niveaux de gris, débruitage, binarisation,
+  correction d'orientation) puis **OCR** via Tesseract.
+- 🧠 **Analyse automatique** du texte : nom, entreprise, poste, téléphone,
+  e-mail, site web et adresse.
+- ✏️ **Validation et édition** des champs avant la sauvegarde.
+- 💾 **Carnet d'adresses** local (SQLite) : consulter, modifier, supprimer,
+  avec **détection de doublons** par e-mail à l'enregistrement.
+- ⬇️ **Export** de tous les contacts :
+  - en JSON dans le dossier `CV-JSON/` ;
+  - en vCard (un fichier `.vcf` par contact) dans le dossier `CV-VCF/`,
+    compatible Google Contacts, Outlook, Apple Contacts, etc.
+
+## Architecture
+
+| Module | Rôle | Dépendances |
+|--------|------|-------------|
+| `cartes_visite/contact.py`  | Modèle de données `Contact`            | standard |
+| `cartes_visite/parser.py`   | Analyse du texte OCR → champs          | standard |
+| `cartes_visite/database.py` | Carnet d'adresses SQLite               | standard |
+| `cartes_visite/exporter.py` | Export JSON et vCard                    | standard |
+| `cartes_visite/ocr.py`      | Prétraitement image + OCR              | OpenCV, Pillow, pytesseract, pdf2image |
+| `cartes_visite/app.py`      | Interface graphique tkinter            | tkinter |
+| `main.py`                   | Point d'entrée (GUI + ligne de commande) | — |
+
+Le cœur applicatif (modèle, analyse, base, export) ne dépend que de la
+**bibliothèque standard de Python** : il reste donc testable et utilisable même
+sans les dépendances d'OCR/image.
+
+## Installation
+
+```bash
+# 1. Dépendances Python (pour la capture et l'OCR)
+pip install -r requirements.txt
+
+# 2. Moteurs système requis par l'OCR
+#    Debian/Ubuntu :
+sudo apt install tesseract-ocr tesseract-ocr-fra poppler-utils
+#    macOS (Homebrew) :
+brew install tesseract poppler
+```
+
+Vérifier que tout est prêt :
+
+```bash
+python main.py check
+```
+
+## Utilisation
+
+### Interface graphique
+
+```bash
+python main.py            # ou : python main.py gui
+```
+
+1. Cliquer sur **Prendre une photo** ou **Importer un fichier**.
+2. Vérifier et corriger les informations détectées.
+3. **Enregistrer** le contact.
+4. Utiliser **Exporter en JSON** ou **Exporter en vCard** quand souhaité.
+
+### Ligne de commande (sans interface graphique)
+
+```bash
+python main.py scan carte.jpg                 # analyse et affiche les champs
+python main.py scan carte.jpg --enregistrer   # analyse et sauvegarde le contact
+python main.py scan-dossier                    # analyse tout le dossier d'entrée
+python main.py export-json                     # exporte le carnet en JSON
+python main.py export-vcf                       # exporte le carnet en vCard
+```
+
+### Où déposer les scans à analyser
+
+Au lancement, l'application crée un dossier d'entrée dans le répertoire de
+travail :
+
+```
+<répertoire de travail>/à analyser/     ← déposez ici vos photos/PDF de cartes
+```
+
+La commande `scan-dossier` analyse alors **tous** les fichiers de ce dossier,
+enregistre les contacts (avec détection de doublons par e-mail) et déplace
+chaque fichier traité dans `<répertoire de travail>/analysés/` :
+
+```bash
+python main.py scan-dossier
+```
+
+Exemple d'arborescence avec OneDrive :
+
+```
+<OneDrive>/numérisation/
+    ├── à analyser/        ← on y dépose les scans
+    ├── analysés/          ← fichiers déjà traités (archivés automatiquement)
+    ├── contacts.db
+    ├── CV-JSON/
+    └── CV-VCF/
+```
+
+### Répertoire de travail
+
+Par défaut, la base de contacts (`contacts.db`) et les exports (`CV-JSON/`,
+`CV-VCF/`) sont rangés dans un **répertoire de travail** détecté automatiquement :
+
+1. le dernier dossier choisi (mémorisé dans `~/.cartes_visite.json`) ;
+2. sinon, **OneDrive** s'il est présent → `<OneDrive>/numérisation`
+   (données sauvegardées et synchronisées dans le cloud) ;
+3. sinon, `<dossier personnel>/numérisation`.
+
+OneDrive est repéré via les variables d'environnement (`OneDrive`,
+`OneDriveConsumer`, `OneDriveCommercial`) sous Windows, le dossier `~/OneDrive`,
+ou `~/Library/CloudStorage/OneDrive-*` sous macOS.
+
+- **En ligne de commande**, on impose le dossier avec `--data-dir` :
+
+  ```bash
+  python main.py --data-dir ~/MesCartes scan carte.jpg --enregistrer
+  python main.py --data-dir ~/MesCartes export-vcf
+  ```
+
+  (`--db` reste disponible pour fixer un chemin de base SQLite précis.)
+
+- **Dans l'interface graphique**, le bouton **📁 Dossier de travail…** permet
+  de choisir le dossier ; le choix est mémorisé pour les prochains lancements,
+  et le chemin courant est affiché en haut de la fenêtre.
+
+## Tests
+
+Les tests couvrent l'analyse de texte, la base de données et les exports
+(parties indépendantes de l'OCR) :
+
+```bash
+python -m unittest discover -s tests
+```
+
+## Licence
+
+Voir le fichier [LICENSE](LICENSE).
