@@ -249,6 +249,19 @@ class Application:
         if contact.est_vide():
             messagebox.showinfo("Contact vide", "Aucune information à enregistrer.")
             return
+
+        # Détection de doublon par e-mail pour un nouveau contact.
+        if contact.id is None and contact.email:
+            existant = self.carnet.trouver_par_email(contact.email)
+            if existant is not None:
+                if not messagebox.askyesno(
+                    "Doublon possible",
+                    f"Un contact avec l'e-mail « {contact.email} » existe déjà "
+                    f"(« {existant.libelle()} »).\n\nMettre à jour ce contact ?",
+                ):
+                    return
+                contact.id = existant.id
+
         self.carnet.enregistrer(contact)
         self._contact_courant = contact
         self.rafraichir_liste()

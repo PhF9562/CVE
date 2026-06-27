@@ -129,6 +129,19 @@ class CarnetAdresses:
         ).fetchall()
         return [self._vers_contact(l) for l in lignes]
 
+    def trouver_par_email(self, email: str) -> Optional[Contact]:
+        """Retourne le premier contact ayant cet e-mail (insensible à la casse).
+
+        Utile pour éviter d'enregistrer deux fois la même carte de visite.
+        """
+        if not email:
+            return None
+        ligne = self._conn.execute(
+            "SELECT * FROM contacts WHERE email <> '' AND email = ? COLLATE NOCASE LIMIT 1",
+            (email,),
+        ).fetchone()
+        return self._vers_contact(ligne) if ligne else None
+
     def nombre(self) -> int:
         return self._conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
 

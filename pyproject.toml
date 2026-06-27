@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cartes-visite"
+version = "1.0.0"
+description = "Application personnelle de numérisation de cartes de visite (OCR, carnet d'adresses, export JSON/vCard)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+keywords = ["ocr", "cartes de visite", "vcard", "contacts", "tesseract"]
+
+# Le cœur applicatif ne dépend que de la bibliothèque standard.
+# Les dépendances d'OCR et d'image sont optionnelles.
+dependencies = []
+
+[project.optional-dependencies]
+ocr = [
+    "pytesseract>=0.3.10",
+    "opencv-python>=4.8.0",
+    "Pillow>=10.0.0",
+    "pdf2image>=1.16.0",
+]
+
+[project.scripts]
+cartes-visite = "main:main"
+
+[tool.setuptools]
+packages = ["cartes_visite"]
+py-modules = ["main"]

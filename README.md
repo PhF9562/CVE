@@ -1,5 +1,7 @@
 # CVE — Numériseur de cartes de visite
 
+[![CI](https://github.com/PhF9562/CVE/actions/workflows/ci.yml/badge.svg)](https://github.com/PhF9562/CVE/actions/workflows/ci.yml)
+
 Application personnelle pour **numériser des cartes de visite**, extraire
 automatiquement les informations de contact par OCR, les ranger dans un carnet
 d'adresses local et les **exporter en JSON et vCard (.vcf)**.
@@ -15,7 +17,8 @@ pour scanner, écran de validation des champs détectés, et export en un clic.
 - 🧠 **Analyse automatique** du texte : nom, entreprise, poste, téléphone,
   e-mail, site web et adresse.
 - ✏️ **Validation et édition** des champs avant la sauvegarde.
-- 💾 **Carnet d'adresses** local (SQLite) : consulter, modifier, supprimer.
+- 💾 **Carnet d'adresses** local (SQLite) : consulter, modifier, supprimer,
+  avec **détection de doublons** par e-mail à l'enregistrement.
 - ⬇️ **Export** de tous les contacts :
   - en JSON dans le dossier `CV-JSON/` ;
   - en vCard (un fichier `.vcf` par contact) dans le dossier `CV-VCF/`,

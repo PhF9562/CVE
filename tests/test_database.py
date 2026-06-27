@@ -52,6 +52,22 @@ class TestCarnetAdresses(unittest.TestCase):
         self.assertIsNone(self.carnet.obtenir(c.id))
         self.assertEqual(self.carnet.nombre(), 0)
 
+    def test_trouver_par_email(self):
+        self.carnet.ajouter(Contact(nom="Gina", email="Gina@Exemple.FR"))
+        # Recherche insensible à la casse.
+        trouve = self.carnet.trouver_par_email("gina@exemple.fr")
+        self.assertIsNotNone(trouve)
+        self.assertEqual(trouve.nom, "Gina")
+        # E-mail inconnu ou vide -> None.
+        self.assertIsNone(self.carnet.trouver_par_email("inconnu@x.fr"))
+        self.assertIsNone(self.carnet.trouver_par_email(""))
+
+    def test_email_vide_non_confondu(self):
+        # Deux contacts sans e-mail ne doivent pas être considérés comme doublons.
+        self.carnet.ajouter(Contact(nom="Sans Mail 1"))
+        self.carnet.ajouter(Contact(nom="Sans Mail 2"))
+        self.assertIsNone(self.carnet.trouver_par_email(""))
+
     def test_recherche(self):
         self.carnet.ajouter(Contact(nom="Eve", entreprise="Initech"))
         self.carnet.ajouter(Contact(nom="Frank", entreprise="Umbrella"))
