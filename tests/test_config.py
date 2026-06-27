@@ -31,11 +31,13 @@ class TestConfig(_ConfigEnv):
         self.assertIsNone(config.get_base_dir())
 
     def test_set_and_get_base_dir(self):
-        config.set_base_dir("/data/numérisation")
-        self.assertEqual(config.get_base_dir(), Path("/data/numérisation"))
+        # Chemin absolu réel (indépendant de la plateforme : pas de POSIX en dur).
+        target = Path(self._tmp.name) / "data" / "numérisation"
+        config.set_base_dir(target)
+        self.assertEqual(config.get_base_dir(), target)
         # Persisté sur le disque et relu indépendamment.
         self.assertTrue(self._cfg.is_file())
-        self.assertEqual(config.load_config()["base_dir"], "/data/numérisation")
+        self.assertEqual(config.load_config()["base_dir"], str(target))
 
     def test_corrupt_config_is_ignored(self):
         self._cfg.write_text("{ pas du json", encoding="utf-8")
@@ -63,10 +65,11 @@ class TestConfig(_ConfigEnv):
 
     def test_set_base_dir_preserves_other_keys(self):
         config.save_config({"autre": 42})
-        config.set_base_dir("/x/numérisation")
+        target = Path(self._tmp.name) / "x" / "numérisation"
+        config.set_base_dir(target)
         cfg = config.load_config()
         self.assertEqual(cfg["autre"], 42)
-        self.assertEqual(cfg["base_dir"], "/x/numérisation")
+        self.assertEqual(cfg["base_dir"], str(target))
 
 
 class TestFindBaseDirUsesConfig(_ConfigEnv):
