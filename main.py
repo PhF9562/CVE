@@ -5,6 +5,7 @@ Usage :
 
     python main.py                      # lance l'interface graphique
     python main.py scan carte.jpg       # OCR d'un fichier puis affichage (sans GUI)
+    python main.py scan-dossier         # analyse tout le dossier d'entrée « à analyser »
     python main.py export-json          # exporte les contacts existants en JSON
     python main.py export-vcf           # exporte les contacts existants en vCard
     python main.py check                # vérifie les dépendances OCR
@@ -58,6 +59,60 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         with CarnetAdresses(args.db) as carnet:
             carnet.ajouter(contact)
         print(f"\nContact enregistré dans : {args.db}")
+    return 0
+
+
+def _deplacer_sans_ecraser(source, dossier_cible):
+    """Déplace ``source`` dans ``dossier_cible`` en évitant d'écraser un homonyme."""
+    dossier_cible.mkdir(parents=True, exist_ok=True)
+    cible = dossier_cible / source.name
+    suffixe = 1
+    while cible.exists():
+        suffixe += 1
+        cible = dossier_cible / f"{source.stem}_{suffixe}{source.suffix}"
+    source.replace(cible)
+    return cible
+
+
+def _cmd_scan_dossier(args: argparse.Namespace) -> int:
+    from cartes_visite import ocr
+
+    manquant = ocr.verifier_dependances()
+    if manquant:
+        print("Dépendances OCR manquantes : " + ", ".join(manquant), file=sys.stderr)
+        return 2
+
+    entree = args.emplacement.dossier_entree
+    fichiers = ocr.lister_fichiers_a_analyser(entree)
+    if not fichiers:
+        print(f"Aucun fichier à analyser dans : {entree}")
+        return 0
+
+    print(f"{len(fichiers)} fichier(s) à analyser dans {entree}\n")
+    traites = 0
+    with CarnetAdresses(args.db) as carnet:
+        for fichier in fichiers:
+            try:
+                contact = ocr.extraire_contact(fichier)
+            except Exception as exc:  # noqa: BLE001
+                print(f"  ✗ {fichier.name} : {exc}")
+                continue
+            if contact.est_vide():
+                print(f"  ⚠ {fichier.name} : aucune information détectée (laissé en place)")
+                continue
+
+            if contact.email:
+                existant = carnet.trouver_par_email(contact.email)
+                if existant is not None:
+                    contact.id = existant.id
+            carnet.enregistrer(contact)
+
+            cible = _deplacer_sans_ecraser(fichier, args.emplacement.dossier_traites)
+            traites += 1
+            print(f"  ✓ {fichier.name} → « {contact.libelle()} » (archivé : {cible.name})")
+
+    print(f"\n{traites} carte(s) enregistrée(s). Fichiers traités déplacés dans : "
+          f"{args.emplacement.dossier_traites}")
     return 0
 
 
@@ -122,6 +177,11 @@ def construire_parseur() -> argparse.ArgumentParser:
         "--enregistrer", action="store_true", help="Enregistre le contact détecté."
     )
 
+    sous.add_parser(
+        "scan-dossier",
+        help="Analyse tous les scans du dossier d'entrée « à analyser ».",
+    )
+
     sous.add_parser("export-json", help="Exporte les contacts au format JSON.")
     sous.add_parser("export-vcf", help="Exporte les contacts au format vCard.")
     sous.add_parser("check", help="Vérifie la présence des dépendances OCR.")
@@ -142,6 +202,7 @@ def main(argv: list[str] | None = None) -> int:
         None: _cmd_gui,
         "gui": _cmd_gui,
         "scan": _cmd_scan,
+        "scan-dossier": _cmd_scan_dossier,
         "export-json": _cmd_export_json,
         "export-vcf": _cmd_export_vcf,
         "check": _cmd_check,

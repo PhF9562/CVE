@@ -23,6 +23,11 @@ from . import exporter
 NOM_DB = "contacts.db"
 NOM_CAPTURE = "capture_carte.png"
 
+# Dossier où l'utilisateur dépose les scans à traiter, et dossier d'archivage
+# des fichiers déjà analysés.
+NOM_ENTREE = "à analyser"
+NOM_TRAITES = "analysés"
+
 # Sous-dossier créé dans OneDrive (ou ailleurs) pour ranger les données.
 NOM_SOUS_DOSSIER = "numérisation"
 
@@ -57,9 +62,20 @@ class EmplacementDonnees:
     def chemin_capture(self) -> Path:
         return self.base / NOM_CAPTURE
 
+    @property
+    def dossier_entree(self) -> Path:
+        """Dossier où déposer les scans à analyser."""
+        return self.base / NOM_ENTREE
+
+    @property
+    def dossier_traites(self) -> Path:
+        """Dossier d'archivage des scans déjà analysés."""
+        return self.base / NOM_TRAITES
+
     def creer(self) -> "EmplacementDonnees":
-        """Crée le répertoire de travail s'il n'existe pas, puis se retourne."""
+        """Crée le répertoire de travail et le dossier d'entrée, puis se retourne."""
         self.base.mkdir(parents=True, exist_ok=True)
+        self.dossier_entree.mkdir(parents=True, exist_ok=True)
         return self
 
     def __str__(self) -> str:

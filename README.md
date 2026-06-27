@@ -77,8 +77,37 @@ python main.py            # ou : python main.py gui
 ```bash
 python main.py scan carte.jpg                 # analyse et affiche les champs
 python main.py scan carte.jpg --enregistrer   # analyse et sauvegarde le contact
+python main.py scan-dossier                    # analyse tout le dossier d'entrée
 python main.py export-json                     # exporte le carnet en JSON
 python main.py export-vcf                       # exporte le carnet en vCard
+```
+
+### Où déposer les scans à analyser
+
+Au lancement, l'application crée un dossier d'entrée dans le répertoire de
+travail :
+
+```
+<répertoire de travail>/à analyser/     ← déposez ici vos photos/PDF de cartes
+```
+
+La commande `scan-dossier` analyse alors **tous** les fichiers de ce dossier,
+enregistre les contacts (avec détection de doublons par e-mail) et déplace
+chaque fichier traité dans `<répertoire de travail>/analysés/` :
+
+```bash
+python main.py scan-dossier
+```
+
+Exemple d'arborescence avec OneDrive :
+
+```
+<OneDrive>/numérisation/
+    ├── à analyser/        ← on y dépose les scans
+    ├── analysés/          ← fichiers déjà traités (archivés automatiquement)
+    ├── contacts.db
+    ├── CV-JSON/
+    └── CV-VCF/
 ```
 
 ### Répertoire de travail

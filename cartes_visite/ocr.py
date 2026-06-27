@@ -166,3 +166,21 @@ EXTENSIONS_SUPPORTEES: Tuple[str, ...] = (
     ".tiff",
     ".pdf",
 )
+
+
+def lister_fichiers_a_analyser(dossier: str | Path) -> List[Path]:
+    """Retourne, triés, les fichiers image/PDF analysables présents dans ``dossier``.
+
+    Les fichiers cachés (commençant par « . ») et les extensions non supportées
+    sont ignorés. Retourne une liste vide si le dossier n'existe pas.
+    """
+    dossier = Path(dossier)
+    if not dossier.is_dir():
+        return []
+    return sorted(
+        p
+        for p in dossier.iterdir()
+        if p.is_file()
+        and not p.name.startswith(".")
+        and p.suffix.lower() in EXTENSIONS_SUPPORTEES
+    )
