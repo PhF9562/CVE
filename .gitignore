@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tests / outils
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Données et exports générés par l'application
+*.db
+CV-JSON/
+CV-VCF/
+CardScan/
+
+# OS
+.DS_Store
