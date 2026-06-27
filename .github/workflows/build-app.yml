@@ -1,0 +1,76 @@
+name: Construire l'application (Windows & macOS)
+
+# Construit les exécutables double-cliquables pour Windows et macOS.
+# - Sur demande manuelle (workflow_dispatch) : artefacts téléchargeables.
+# - Sur un tag « v* » : artefacts + publication dans une Release GitHub.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write  # nécessaire pour créer la Release sur un tag
+
+jobs:
+  build:
+    name: Build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows
+            artifact: Numeriseur-Cartes-Windows
+          - os: macos-latest
+            label: macOS
+            artifact: Numeriseur-Cartes-macOS
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "pyinstaller>=6,<7"
+
+      - name: Lancer les tests
+        run: python -m unittest discover -s tests
+
+      - name: Construire l'exécutable
+        run: pyinstaller --noconfirm --clean cartevisite.spec
+
+      - name: Empaqueter (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/Numeriseur-Cartes.exe -DestinationPath dist/${{ matrix.artifact }}.zip -Force
+
+      - name: Empaqueter (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd dist
+          # Compresse le bundle .app (préserve les permissions et liens).
+          ditto -c -k --sequesterRsrc --keepParent "Numeriseur-Cartes.app" "${{ matrix.artifact }}.zip"
+
+      - name: Téléverser l'artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}.zip
+          if-no-files-found: error
+
+      - name: Publier dans la Release (sur tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.artifact }}.zip
